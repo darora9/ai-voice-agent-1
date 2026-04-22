@@ -60,12 +60,7 @@ class SpeechService:
         except Exception as e:
             print(f"[STT Error] {e}")
             return ""
-                response.raise_for_status()
-                return response.json().get("transcript", "").strip()
 
-        except Exception as e:
-            print(f"[STT Error] {e}")
-            return ""
 
     # ------------------------------------------------------------------
     # Text-to-Speech  (text → PCM bytes at 8kHz)
