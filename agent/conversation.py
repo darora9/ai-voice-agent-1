@@ -104,9 +104,18 @@ def _no_slots_on_date(date: str, is_today: bool = False) -> str:
     return f"{date} ko pure din mein koi bhi slot available nahi hai. Kripya koi aur taareekh batayein."
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
+    import datetime as _dt
+    try:
+        d = _dt.date.fromisoformat(date)
+        day_names = ["Somwar", "Mangalwar", "Budhwar", "Guruwar", "Shukrawar", "Shaniwar", "Itwar"]
+        month_names = ["January","February","March","April","May","June",
+                       "July","August","September","October","November","December"]
+        human_date = f"{d.day} {month_names[d.month-1]} ({day_names[d.weekday()]})"
+    except Exception:
+        human_date = date
     return (
         f"Bilkul! {name} ji, aapki appointment confirm ho gayi hai. "
-        f"Taareekh: {date}, Samay: {time} baje. "
+        f"Taareekh: {human_date}, Samay: {time} baje. "
         f"Aapko {CLINIC_NAME} mein milenge. Dhanyavad!"
     )
 
@@ -574,6 +583,22 @@ class ConversationManager:
         today    = today_obj.isoformat()
         tomorrow = (today_obj + _dt.timedelta(days=1)).isoformat()
         day_after = (today_obj + _dt.timedelta(days=2)).isoformat()
+
+        # Pre-compute the next occurrence of every weekday (always future, never today)
+        weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        hindi_weekdays = ["Somwar", "Mangalwar", "Budhwar", "Guruwar", "Shukrawar", "Shaniwar", "Itwar"]
+        weekday_map: dict[str, str] = {}
+        for idx, (en, hi) in enumerate(zip(weekday_names, hindi_weekdays)):
+            days_ahead = (idx - today_obj.weekday()) % 7 or 7  # never 0 (=today)
+            target = (today_obj + _dt.timedelta(days=days_ahead)).isoformat()
+            weekday_map[en] = target
+            weekday_map[hi] = target
+
+        weekday_examples = "; ".join(
+            f"'next {en}' or '{en}' or '{hi}'->{date}"
+            for (en, hi), date in zip(zip(weekday_names, hindi_weekdays), weekday_map[n] for n in weekday_names)
+        )
+
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -586,6 +611,7 @@ class ConversationManager:
                             "ALWAYS return actual calendar dates in YYYY-MM-DD format, never placeholder words. "
                             'Return JSON: {"date": "YYYY-MM-DD", "time": "HH:MM"} — use null if not present. '
                             "Relative dates: 'aaj'=today, 'kal'=tomorrow, 'parso'=day after tomorrow, 'agle X'=next X. "
+                            f"Weekday names always mean the NEXT upcoming occurrence: {weekday_examples}. "
                             "Time words: 'subah'=morning (AM), 'dopahar'=noon (12:00-15:00), "
                             "'shaam'=evening (add 12 if hour<8, e.g. shaam 5=17:00), 'raat'=night (add 12 if hour<8). "
                             "No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. "

@@ -58,6 +58,10 @@ class StreamSession:
             async for raw in websocket.iter_text():
                 await self._on_message(json.loads(raw))
         except Exception as e:
+            # Suppress noise from Twilio sending a final frame after we close on DONE
+            from agent.conversation import State
+            if self.conversation and self.conversation.state == State.DONE:
+                return
             print(f"[Stream Error] {self.call_sid}: {e}")
 
     # ------------------------------------------------------------------
