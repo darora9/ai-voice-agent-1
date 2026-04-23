@@ -93,8 +93,13 @@ class CalendarService:
         """
         Return list of available HH:MM slots on a given date.
         Checks existing events and excludes booked times.
+        Returns None on API error, [] if genuinely no slots.
         """
         try:
+            # Clinic is Mon-Sat only; Sunday has no slots
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            if date_obj.weekday() == 6:  # 6 = Sunday
+                return []
             tz = "Asia/Kolkata"
             start_of_day = datetime.strptime(f"{date_str} 09:00", "%Y-%m-%d %H:%M")
             end_of_day = datetime.strptime(f"{date_str} 18:00", "%Y-%m-%d %H:%M")

@@ -231,6 +231,13 @@ class ConversationManager:
         time = dt.get("time")
         if not time:
             return "Kripya samay batayein, jaise 'subah 10 baje' ya 'shaam 3 baje'."
+        # Apply PM flip: hour < 9 outside clinic hours means PM was intended
+        try:
+            h, m = map(int, time.split(":"))
+            if h < 9:
+                time = f"{h + 12:02d}:{m:02d}"
+        except Exception:
+            pass
         self.time = time
         return await self._check_slot()
 
@@ -372,11 +379,12 @@ class ConversationManager:
             return False
 
     def _is_past_slot(self, date: str, time: str) -> bool:
-        """Returns True if the date+time combination is already in the past."""
+        """Returns True if the date+time combination is already in the past (IST-aware)."""
         import datetime as _dt
         try:
-            slot_dt = _dt.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-            return slot_dt <= _dt.datetime.now()
+            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+            slot_dt = _dt.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M").replace(tzinfo=IST)
+            return slot_dt <= _dt.datetime.now(tz=IST)
         except Exception:
             return False
 
@@ -421,6 +429,10 @@ class ConversationManager:
             return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
         slots = [s for s in all_slots if not self._is_past_slot(query_date, s)]
 
+        # Remember the queried date so follow-up "book kar do" works without re-asking
+        self.date = query_date
+        self.state = State.WAIT_TIME if not query_time else self.state
+
         if not slots:
             import datetime as _dt
             is_today = query_date == _dt.date.today().isoformat()
@@ -445,33 +457,35 @@ class ConversationManager:
     # ------------------------------------------------------------------
 
     async def _extract_name(self, text: str) -> str:
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Extract the person's name from the text. "
-                        "It can be a single name or full name — both are valid. "
-                        "Capitalize it properly. "
-                        "Return only JSON: {\"name\": \"Name\"} or {\"name\": null} if no name is present."
-                    ),
-                },
-                {"role": "user", "content": text},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0,
-            max_tokens=30,
-        )
         try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Extract the person's name from the text. "
+                            "It can be a single name or full name — both are valid. "
+                            "Capitalize it properly. "
+                            'Return only JSON: {"name": "Name"} or {"name": null} if no name is present.'
+                        ),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+                max_tokens=30,
+            )
             data = json.loads(response.choices[0].message.content)
             return data.get("name") or None
-        except Exception:
+        except Exception as e:
+            print(f"[LLM Error] _extract_name: {e}")
             return None
 
     async def _extract_datetime(self, text: str) -> dict:
         import datetime as _dt
-        today_obj = _dt.date.today()
+        try:
+            today_obj = _dt.date.today()
         today = today_obj.isoformat()
         tomorrow = (today_obj + _dt.timedelta(days=1)).isoformat()
         day_after = (today_obj + _dt.timedelta(days=2)).isoformat()
@@ -501,14 +515,14 @@ class ConversationManager:
                 {"role": "user", "content": text},
             ],
             response_format={"type": "json_object"},
-            temperature=0,
-            max_tokens=50,
-        )
-        try:
+                temperature=0,
+                max_tokens=50,
+            )
             data = json.loads(response.choices[0].message.content)
             date = data.get("date") if data.get("date") not in (None, "null", "") else None
             time = data.get("time") if data.get("time") not in (None, "null", "") else None
             return {"date": date, "time": time}
-        except Exception:
+        except Exception as e:
+            print(f"[LLM Error] _extract_datetime: {e}")
             return {"date": None, "time": None}
 
