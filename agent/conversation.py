@@ -266,6 +266,8 @@ class ConversationManager:
                 except Exception:
                     pass
                 self.time = time
+            else:
+                self.time = ""  # clear old failed time so _check_slot asks fresh
             return await self._check_slot()
 
         if not time:
@@ -421,10 +423,11 @@ class ConversationManager:
         """Detect if the caller is asking about slot availability rather than booking."""
         t = text.lower()
         keywords = [
-            "kya slot", "koi slot", "available", "available hai", "khali",
+            "kya slot", "koi slot", "slot available", "slots available",
             "kab available", "slots hain", "slots hai", "slots bata",
-            "कोई slot", "कब available", "खाली", "available है",
-            "kab hai", "kab milega", "kab milegi", "when is", "kaun sa slot",
+            "khali slot", "koi jagah", "slot khali",
+            "कोई slot", "खाली slot", "slot खाली",
+            "kab hai slot", "kab milega slot", "kaun sa slot", "kon sa slot",
         ]
         return any(kw in t for kw in keywords)
 
