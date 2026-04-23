@@ -51,11 +51,14 @@ class SpeechService:
             response = await self._groq.audio.transcriptions.create(
                 file=("audio.wav", wav_buffer.read(), "audio/wav"),
                 model="whisper-large-v3",
-                language="hi",        # Hindi — best accuracy for Indian callers
+                language="hi",
+                prompt="यह एक Hindi conversation है doctor appointment booking के लिए। Caller अपना नाम English या Hindi में बोल सकता है जैसे Rahul, Priya, Rishav, Sharma, etc. तारीख और समय भी बोल सकता है।",
                 response_format="text",
                 temperature=0.0,
             )
-            return str(response).strip()
+            transcript = str(response).strip()
+            print(f"[STT] Raw transcript: {transcript}")
+            return transcript
 
         except Exception as e:
             print(f"[STT Error] {e}")
