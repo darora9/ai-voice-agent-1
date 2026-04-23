@@ -1,31 +1,28 @@
-"""
+﻿"""
 AI Voice Agent - Doctor Appointment Booking
-Uses Twilio <Record> + Sarvam STT/TTS — no WebSocket, no RMS tuning.
 
-Flow per turn:
-  1. Play TTS audio via <Play>
-  2. <Record> captures caller's response
-  3. POST to /handle-recording → download WAV → Sarvam STT → LLM → Sarvam TTS → loop
-  4. When done → <Play> confirmation + <Hangup>
+Twilio Media Streams (bidirectional WebSocket) for real-time low-latency conversation.
+
+Flow:
+  1. POST /incoming-call  -> TwiML <Connect><Stream url="wss://host/stream"/>
+  2. Twilio opens WebSocket /stream -- pipes caller audio in real-time (mulaw 8kHz)
+  3. VAD detects end of speech -> Groq Whisper -> state machine -> Sarvam TTS
+  4. TTS mulaw sent back through the same WebSocket -- Twilio plays it to caller
+  5. When state == DONE, WebSocket closes -> <Hangup> fires
 """
 
 import os
-import io
-import uuid
-import wave
-from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.responses import Response, FileResponse
-import httpx
+from fastapi import FastAPI, Request, WebSocket
+from fastapi.responses import Response
 import uvicorn
 from dotenv import load_dotenv
 
-from agent.conversation import ConversationManager, State
 from services.speech import SpeechService
+from services.twilio_handler import StreamSession
 
 load_dotenv()
 
-# Decode Google service account on Railway (file is gitignored)
+# Decode Google service account credentials (stored as base64 in Railway env var)
 _b64 = os.getenv("GOOGLE_SERVICE_ACCOUNT_B64")
 if _b64:
     import base64 as _b64mod
@@ -34,194 +31,41 @@ if _b64:
         _f.write(_b64mod.b64decode(_b64))
     os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = _creds_path
 
-app = FastAPI(title="AI Voice Agent - Doctor Appointment Booking")
+app = FastAPI(title="AI Voice Agent")
 speech_service = SpeechService()
 
-# In-memory sessions: call_sid → ConversationManager
-sessions: dict = {}
-
-# Serve generated TTS audio files
-AUDIO_DIR = Path("/tmp/voice_audio")
-AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def get_base_url(request: Request) -> str:
-    host = request.headers.get("host", "localhost:8000")
-    scheme = "https" if ("railway.app" in host or "ngrok" in host) else "http"
-    return f"{scheme}://{host}"
-
-
-async def tts_to_file(text: str, call_sid: str, turn: str) -> str:
-    """Generate TTS, save as WAV, return filename."""
-    pcm_bytes = await speech_service.synthesize(text)
-    filename = f"{call_sid}_{turn}.wav"
-    filepath = AUDIO_DIR / filename
-    wav_buf = io.BytesIO()
-    with wave.open(wav_buf, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(8000)
-        wf.writeframes(pcm_bytes)
-    filepath.write_bytes(wav_buf.getvalue())
-    return filename
-
-
-def record_twiml(audio_url: str, action_url: str) -> str:
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Play>{audio_url}</Play>
-    <Record action="{action_url}" method="POST"
-            timeout="5" finishOnKey="#" playBeep="true"
-            maxLength="30"/>
-</Response>"""
-
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "AI Voice Agent"}
-
-
-@app.get("/audio/{filename}")
-async def serve_audio(filename: str):
-    filepath = AUDIO_DIR / filename
-    if not filepath.exists():
-        return Response(status_code=404)
-    return FileResponse(str(filepath), media_type="audio/wav")
+    return {"status": "ok"}
 
 
 @app.post("/incoming-call")
 async def incoming_call(request: Request):
-    form = await request.form()
-    call_sid = form.get("CallSid", str(uuid.uuid4()))
+    host = request.headers.get("host", "localhost:8000")
+    stream_url = f"wss://{host}/stream"
+    print(f"[Call] Incoming -> stream at {stream_url}")
 
-    conversation = ConversationManager()
-    sessions[call_sid] = conversation
-
-    base_url = get_base_url(request)
-    filename = await tts_to_file(conversation.get_greeting(), call_sid, "0")
-    audio_url = f"{base_url}/audio/{filename}"
-    action_url = f"{base_url}/handle-recording"
-
-    print(f"[Call] Started: {call_sid}")
-    return Response(content=record_twiml(audio_url, action_url),
-                    media_type="application/xml")
-
-
-@app.post("/handle-recording")
-async def handle_recording(request: Request):
-    form = await request.form()
-    call_sid = form.get("CallSid", "")
-    recording_url = form.get("RecordingUrl", "")
-    retries_so_far = int(request.query_params.get("_retries", 0))
-
-    base_url = get_base_url(request)
-    action_url = f"{base_url}/handle-recording"
-
-    conversation = sessions.get(call_sid)
-    if not conversation:
-        return Response(
-            content='<?xml version="1.0"?><Response><Hangup/></Response>',
-            media_type="application/xml")
-
-    # Download recording WAV from Twilio (requires auth)
-    twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-    twilio_token = os.getenv("TWILIO_AUTH_TOKEN", "")
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get(f"{recording_url}.wav",
-                                 auth=(twilio_sid, twilio_token))
-            r.raise_for_status()
-            wav_bytes = r.content
-    except Exception as e:
-        print(f"[Recording Error] {e}")
-        filename = await tts_to_file(
-            "Maafi chahta hoon, kripya dobara bolein.", call_sid, "err")
-        return Response(
-            content=record_twiml(f"{base_url}/audio/{filename}", action_url),
-            media_type="application/xml")
-
-    # Minimum audio size check — WAV header alone is 44 bytes; < 8000 bytes ≈ < 0.5s at 8kHz
-    if len(wav_bytes) < 8000:
-        print(f"[Recording] Too short ({len(wav_bytes)} bytes), re-prompting")
-        retries = retries_so_far + 1
-        if retries >= 3:
-            filename = await tts_to_file(
-                "Koi jawab nahi mila. Baad mein call karein. Dhanyavad.", call_sid, "bye")
-            sessions.pop(call_sid, None)
-            return Response(
-                content=f"""<?xml version="1.0" encoding="UTF-8"?><Response><Play>{base_url}/audio/{filename}</Play><Pause length="2"/><Hangup/></Response>""",
-                media_type="application/xml")
-        filename = await tts_to_file(
-            "Kripya apna jawab phir se bolein.", call_sid, f"notrans{retries}")
-        action_with_retry = f"{action_url}?_retries={retries}"
-        return Response(
-            content=record_twiml(f"{base_url}/audio/{filename}", action_with_retry),
-            media_type="application/xml")
-
-    # STT
-    transcript = await speech_service.transcribe_wav_bytes(wav_bytes)
-    print(f"[Caller] {transcript}")
-
-    # Guard: Whisper returns prompt text verbatim when audio is silent/garbled
-    # Catches: "Caller may say...", "Caller may ask...", etc.
-    t_lower = transcript.strip().lower()
-    is_hallucination = (
-        not t_lower
-        or len(t_lower) < 2
-        or t_lower.startswith("caller may")
-        or t_lower.startswith("caller can")
-        or "appointment booking conversation" in t_lower
-    )
-    if is_hallucination:
-        retries = retries_so_far + 1
-        if retries >= 3:
-            filename = await tts_to_file(
-                "Koi jawab nahi mila. Baad mein call karein. Dhanyavad.", call_sid, "bye")
-            sessions.pop(call_sid, None)
-            return Response(
-                content=f"""<?xml version="1.0" encoding="UTF-8"?><Response><Play>{base_url}/audio/{filename}</Play><Pause length="2"/><Hangup/></Response>""",
-                media_type="application/xml")
-        filename = await tts_to_file(
-            "Kripya apna jawab phir se bolein.", call_sid, f"notrans{retries}")
-        action_with_retry = f"{action_url}?_retries={retries}"
-        return Response(
-            content=record_twiml(f"{base_url}/audio/{filename}", action_with_retry),
-            media_type="application/xml")
-
-    # LLM → agent response
-    response_text = await conversation.process_turn(transcript)
-    print(f"[Agent] {response_text}")
-
-    turn = uuid.uuid4().hex[:8]
-    filename = await tts_to_file(response_text, call_sid, turn)
-    audio_url = f"{base_url}/audio/{filename}"
-
-    if conversation.state == State.DONE:
-        sessions.pop(call_sid, None)
-        twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Play>{audio_url}</Play>
-    <Pause length="2"/>
+    <Connect>
+        <Stream url="{stream_url}"/>
+    </Connect>
     <Hangup/>
 </Response>"""
-    else:
-        twiml = record_twiml(audio_url, action_url)
-
     return Response(content=twiml, media_type="application/xml")
+
+
+@app.websocket("/stream")
+async def stream_ws(websocket: WebSocket):
+    session = StreamSession(speech_service)
+    await session.run(websocket)
 
 
 @app.post("/call-status")
 async def call_status(request: Request):
     form = await request.form()
-    call_sid = form.get("CallSid")
-    status = form.get("CallStatus")
-    print(f"[Call Status] SID={call_sid}, Status={status}")
-    if status in ("completed", "failed", "busy", "no-answer"):
-        sessions.pop(call_sid, None)
+    print(f"[Call Status] SID={form.get('CallSid')}, Status={form.get('CallStatus')}")
     return Response(content="OK")
 
 

@@ -35,9 +35,9 @@ class SpeechService:
         try:
             response = await self._groq.audio.transcriptions.create(
                 file=("audio.wav", wav_bytes, "audio/wav"),
-                model="whisper-large-v3",
+                model="whisper-large-v3-turbo",
                 language="hi",
-                prompt="Appointment booking conversation. Caller may say their name in English e.g. Rahul, Rishav, Priya, Dheeraj, or give dates/times in Hindi.",
+                prompt="Hindi. Names: Rahul, Rishav, Priya, Dheeraj, Sharma.",
                 response_format="text",
                 temperature=0.0,
             )

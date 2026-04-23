@@ -1,172 +1,183 @@
-"""
-Twilio Media Stream handler.
-Processes real-time audio from caller, runs STT → GPT-4 → TTS pipeline.
+﻿"""
+Real-time bidirectional WebSocket media stream handler for Twilio <Connect><Stream>.
+
+Receives inbound caller audio (mulaw 8kHz, 20ms chunks).
+Runs energy-based VAD to detect end of speech (~400ms silence).
+Sends TTS audio back through the same WebSocket -- no HTTP round-trips.
+
+Latency per turn: ~2-3 s   (vs 10-12 s with <Record> approach)
 """
 
 import asyncio
-import base64
-import json
 import audioop
-from typing import Optional
+import base64
+import io
+import json
+import time
+import wave
+
 from fastapi import WebSocket
 
-from agent.conversation import ConversationManager
-from services.speech import SpeechService
+# ---------------------------------------------------------------------------
+# VAD tuning
+# ---------------------------------------------------------------------------
+SPEECH_RMS  = 180   # RMS above this = active speech
+SILENCE_END = 20    # consecutive silent 20ms frames -> end of utterance (~400ms)
+MIN_SPEECH  = 5     # minimum speech frames to process (~100ms)
+TTS_CHUNK   = 3200  # bytes per WebSocket write (~200ms of mulaw @ 8kHz)
 
 
-class TwilioMediaHandler:
-    def __init__(
-        self,
-        websocket: WebSocket,
-        conversation: ConversationManager,
-        speech_service: SpeechService,
-    ):
-        self.websocket = websocket
-        self.conversation = conversation
+def _mulaw_to_wav(mulaw_bytes: bytes) -> bytes:
+    """Wrap raw mulaw 8kHz bytes in a WAV container for Whisper."""
+    pcm = audioop.ulaw2lin(mulaw_bytes, 2)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(8000)
+        wf.writeframes(pcm)
+    return buf.getvalue()
+
+
+class StreamSession:
+    """Manages one live call over a Twilio bidirectional media stream."""
+
+    def __init__(self, speech_service):
         self.speech = speech_service
+        self.call_sid    = None
+        self.stream_sid  = None
+        self.conversation = None
+        self._ws: WebSocket | None = None
 
-        self.stream_sid: Optional[str] = None
-        self.call_sid: Optional[str] = None
+        # VAD state
+        self._buf        = bytearray()
+        self._has_speech = False
+        self._sil        = 0
+        self._sframes    = 0
 
-        # Audio buffer: Twilio sends mulaw 8kHz; accumulate chunks before STT
-        self._audio_buffer = bytearray()
-        self._speech_threshold = 300         # RMS above = real speech (background noise ~50, voice ~877+)
-        self._min_speech_bytes = 6400        # ~0.8s of audio before processing
-        self._silent_chunks = 0
-        self._silent_chunks_threshold = 12   # ~1.2s of non-speech after speech → trigger STT
-        self._has_speech = False             # guard: only STT if real speech detected
-        self._total_chunks = 0               # for debug logging
+        # Mute inbound audio while TTS is playing (prevents echo re-processing)
+        self._muted_until = 0.0
 
-        self._is_agent_speaking = False
-        self._processing_lock = asyncio.Lock()
+        # Only one STT->LLM->TTS pipeline at a time
+        self._processing = False
 
-    async def run(self):
-        """Main loop: receive Twilio events and process audio."""
-        async for message in self._receive_messages():
-            await self._handle_message(message)
+    # ------------------------------------------------------------------
+    # Entry point
+    # ------------------------------------------------------------------
 
-    async def _receive_messages(self):
-        while True:
-            try:
-                raw = await self.websocket.receive_text()
-                yield json.loads(raw)
-            except Exception:
-                break
+    async def run(self, websocket: WebSocket):
+        self._ws = websocket
+        await websocket.accept()
+        try:
+            async for raw in websocket.iter_text():
+                await self._on_message(json.loads(raw))
+        except Exception as e:
+            print(f"[Stream Error] {self.call_sid}: {e}")
 
-    async def _handle_message(self, msg: dict):
+    # ------------------------------------------------------------------
+    # Message dispatch
+    # ------------------------------------------------------------------
+
+    async def _on_message(self, msg: dict):
         event = msg.get("event")
 
         if event == "start":
+            from agent.conversation import ConversationManager
+            self.call_sid   = msg["start"]["callSid"]
             self.stream_sid = msg["start"]["streamSid"]
-            self.call_sid = msg["start"]["callSid"]
-            print(f"[Stream] Started: {self.stream_sid}")
+            self.conversation = ConversationManager()
+            print(f"[Call] Stream started: {self.call_sid}")
             asyncio.create_task(self._speak(self.conversation.get_greeting()))
 
         elif event == "media":
-            if self._is_agent_speaking:
-                return  # Ignore caller audio while agent is speaking
-            payload = msg["media"]["payload"]
-            mulaw_chunk = base64.b64decode(payload)
-            self._audio_buffer.extend(mulaw_chunk)
-
-            # Check for end-of-speech using silence detection
-            await self._check_end_of_speech(mulaw_chunk)
+            if not self.conversation:
+                return
+            if msg["media"].get("track", "inbound") != "inbound":
+                return
+            self._vad(base64.b64decode(msg["media"]["payload"]))
 
         elif event == "stop":
-            print("[Stream] Stopped")
+            print(f"[Call] Stream stopped: {self.call_sid}")
 
-    async def _check_end_of_speech(self, chunk: bytes):
-        """Detect silence to know when caller has finished speaking."""
-        try:
-            pcm = audioop.ulaw2lin(chunk, 2)
-            rms = audioop.rms(pcm, 2)
-        except Exception:
-            rms = 0
+    # ------------------------------------------------------------------
+    # VAD -- energy-based end-of-speech detection
+    # ------------------------------------------------------------------
 
-        self._total_chunks += 1
-        if self._total_chunks % 50 == 0:
-            print(f"[Audio] buffer={len(self._audio_buffer)}B rms={rms} silent={self._silent_chunks} has_speech={self._has_speech}")
+    def _vad(self, chunk: bytes):
+        if time.monotonic() < self._muted_until:
+            return  # ignore inbound during TTS playback
 
-        if rms >= self._speech_threshold:
-            # Real voice detected
+        rms = audioop.rms(audioop.ulaw2lin(chunk, 2), 2)
+
+        if rms > SPEECH_RMS:
             self._has_speech = True
-            self._silent_chunks = 0
+            self._sil = 0
+            self._sframes += 1
+            self._buf.extend(chunk)
         elif self._has_speech:
-            # After speech started, anything below threshold counts as silence
-            self._silent_chunks += 1
+            self._sil += 1
+            self._buf.extend(chunk)
+            if self._sil >= SILENCE_END:
+                if self._sframes >= MIN_SPEECH and not self._processing:
+                    audio = bytes(self._buf)
+                    self._reset_vad()
+                    asyncio.create_task(self._pipeline(audio))
+                else:
+                    self._reset_vad()
 
-        # Trigger STT: real speech was heard + followed by enough silence
-        if (
-            self._has_speech
-            and len(self._audio_buffer) >= self._min_speech_bytes
-            and self._silent_chunks >= self._silent_chunks_threshold
-        ):
-            await self._process_speech()
+    def _reset_vad(self):
+        self._buf        = bytearray()
+        self._has_speech = False
+        self._sil        = 0
+        self._sframes    = 0
 
-    async def _process_speech(self):
-        """Run STT → GPT-4 → TTS pipeline."""
-        async with self._processing_lock:
-            audio_data = bytes(self._audio_buffer)
-            self._audio_buffer.clear()
-            self._silent_chunks = 0
-            self._has_speech = False
+    # ------------------------------------------------------------------
+    # STT -> state machine -> TTS pipeline
+    # ------------------------------------------------------------------
 
-            if not audio_data:
-                return
-
-            # Speech-to-Text
-            transcript = await self.speech.transcribe_mulaw(audio_data)
-            if not transcript or not transcript.strip():
-                return
-
+    async def _pipeline(self, mulaw_audio: bytes):
+        self._processing = True
+        try:
+            transcript = await self.speech.transcribe_wav_bytes(_mulaw_to_wav(mulaw_audio))
             print(f"[Caller] {transcript}")
 
-            # GPT-4 response
-            response_text = await self.conversation.process_turn(transcript)
-            print(f"[Agent] {response_text}")
+            t = transcript.strip().lower()
+            if (not t or len(t) < 2
+                    or t.startswith("caller may")
+                    or t.startswith("caller can")
+                    or "appointment booking" in t):
+                return  # Whisper hallucination on near-silent audio -- discard
 
-            if response_text:
-                asyncio.create_task(self._speak(response_text))
+            from agent.conversation import State
+            response = await self.conversation.process_turn(transcript)
+            if not response:
+                return
+            print(f"[Agent] {response}")
+
+            await self._speak(response)
+
+            if self.conversation.state == State.DONE:
+                await asyncio.sleep(1.5)
+                await self._ws.close()
+        finally:
+            self._processing = False
+
+    # ------------------------------------------------------------------
+    # TTS -> WebSocket audio injection
+    # ------------------------------------------------------------------
 
     async def _speak(self, text: str):
-        """Convert text to speech and stream back to Twilio."""
-        self._is_agent_speaking = True
-        self._audio_buffer.clear()
-        self._silent_chunks = 0
-        try:
-            print(f"[TTS] Synthesizing: {text[:60]}")
-            audio_bytes = await self.speech.synthesize(text)
-            print(f"[TTS] Got {len(audio_bytes)} bytes")
-            mulaw_audio = self.speech.pcm_to_mulaw(audio_bytes)
-            print(f"[TTS] Sending {len(mulaw_audio)} mulaw bytes")
-            await self._send_audio(mulaw_audio)
-            # Wait for audio to finish playing + extra buffer to prevent echo
-            audio_duration_secs = len(mulaw_audio) / 8000
-            await asyncio.sleep(audio_duration_secs + 0.8)
-        except Exception as e:
-            print(f"[TTS Error] {e}")
-        finally:
-            self._audio_buffer.clear()
-            self._silent_chunks = 0
-            self._has_speech = False
-            self._is_agent_speaking = False
+        pcm = await self.speech.synthesize(text)
+        if not pcm:
+            return
 
-    async def _send_audio(self, mulaw_audio: bytes):
-        """Send audio chunks to Twilio via media stream."""
-        chunk_size = 160  # 20ms at 8kHz
-        for i in range(0, len(mulaw_audio), chunk_size):
-            chunk = mulaw_audio[i : i + chunk_size]
-            payload = base64.b64encode(chunk).decode("utf-8")
-            await self.websocket.send_text(
-                json.dumps(
-                    {
-                        "event": "media",
-                        "streamSid": self.stream_sid,
-                        "media": {"payload": payload},
-                    }
-                )
-            )
-            await asyncio.sleep(0.02)  # 20ms pacing
+        mulaw = audioop.lin2ulaw(pcm, 2)
+        # Mute inbound for the full TTS duration + 500ms buffer
+        self._muted_until = time.monotonic() + len(mulaw) / 8000.0 + 0.5
 
-    async def cleanup(self):
-        self._audio_buffer.clear()
+        for i in range(0, len(mulaw), TTS_CHUNK):
+            await self._ws.send_text(json.dumps({
+                "event": "media",
+                "streamSid": self.stream_sid,
+                "media": {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
+            }))
