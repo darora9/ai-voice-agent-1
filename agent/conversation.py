@@ -41,21 +41,21 @@ class State(Enum):
 
 def _greeting_with_hours(name: str) -> str:
     return (
-        f"{name} ji, namaste! "
-        f"Hamare clinic ke kaam ke ghante hain: {CLINIC_HOURS}. "
-        "Aap kaunse din aur kis samay appointment lena chahenge?"
+        f"{name} जी, नमस्ते! "
+        f"हमारे clinic के काम के घंटे हैं: {CLINIC_HOURS}. "
+        "आप कौनसे दिन और किस समय appointment लेना चाहेंगे?"
     )
 
 def _ask_time(date: str) -> str:
-    return f"{date} theek hai. Aap kis samay aana chahenge? (Subah 9 baje se shaam 6 baje ke beech)"
+    return f"{date} ठीक है। आप किस समय आना चाहेंगे? (सुबह 9 बजे से शाम 6 बजे के बीच)"
 
 def _ask_date(time: str) -> str:
-    return f"{time} ka samay theek hai. Aap kaunse din aana chahenge?"
+    return f"{time} का समय ठीक है। आप कौनसे दिन आना चाहेंगे?"
 
 def _slot_available_confirm(name: str, date: str, time: str) -> str:
     return (
-        f"{name} ji, {date} ko {time} baje ka slot available hai. "
-        "Kya main yeh appointment confirm karun?"
+        f"{name} जी, {date} को {time} बजे का slot available है। "
+        "क्या मैं यह appointment confirm करूँ?"
     )
 
 def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | None]:
@@ -78,15 +78,15 @@ def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | No
         parts.append(before)
     if after:
         parts.append(after)
-    nearby_str = " aur ".join(parts) if parts else None
+    nearby_str = " और ".join(parts) if parts else None
     if nearby_str:
         return (
-            f"Maafi kijiye, {date} ko {time} baje ka slot available nahi hai. "
-            f"Nearby slots hain: {nearby_str} baje. Kaunsa theek rahega?"
+            f"माफ़ी चाहते हैं, {date} को {time} बजे का slot available नहीं है। "
+            f"Nearby slots हैं: {nearby_str} बजे। कौनसा ठीक रहेगा?"
         )
     return (
-        f"Maafi kijiye, {date} ko {time} baje ka slot available nahi hai. "
-        "Kripya koi aur samay batayein."
+        f"माफ़ी चाहते हैं, {date} को {time} बजे का slot available नहीं है। "
+        "कृपया कोई और समय बताएं।"
     )
 
 
@@ -100,36 +100,36 @@ def _slot_taken(date: str, time: str, suggestions: list) -> str:
 
 def _no_slots_on_date(date: str, is_today: bool = False) -> str:
     if is_today:
-        return "Aaj pure din mein koi slot available nahi hai. Kripya kisi aur din ki taareekh batayein."
-    return f"{date} ko pure din mein koi bhi slot available nahi hai. Kripya koi aur taareekh batayein."
+        return "आज पूरे दिन में कोई slot available नहीं है। कृपया किसी और दिन की तारीख़ बताएं।"
+    return f"{date} को पूरे दिन में कोई भी slot available नहीं है। कृपया कोई और तारीख़ बताएं।"
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
     import datetime as _dt
     try:
         d = _dt.date.fromisoformat(date)
-        day_names = ["Somwar", "Mangalwar", "Budhwar", "Guruwar", "Shukrawar", "Shaniwar", "Itwar"]
+        day_names = ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"]
         month_names = ["January","February","March","April","May","June",
                        "July","August","September","October","November","December"]
         human_date = f"{d.day} {month_names[d.month-1]} ({day_names[d.weekday()]})"
     except Exception:
         human_date = date
     return (
-        f"Bilkul! {name} ji, aapki appointment confirm ho gayi hai. "
-        f"Taareekh: {human_date}, Samay: {time} baje. "
-        f"Aapko {CLINIC_NAME} mein milenge. Dhanyavad!"
+        f"बिल्कुल! {name} जी, आपकी appointment confirm हो गई है। "
+        f"तारीख़: {human_date}, समय: {time} बजे। "
+        f"आपको {CLINIC_NAME} में मिलेंगे। धन्यवाद!"
     )
 
 def _booking_failed() -> str:
     return (
-        "Maafi chahta hoon, booking mein kuch samasya aayi. "
-        "Kripya dobaara taareekh aur samay batayein."
+        "माफ़ी चाहते हैं, booking में कुछ समस्या आई। "
+        "कृपया दोबारा तारीख़ और समय बताएं।"
     )
 
 
 GREETING = (
-    f"Namaste! {CLINIC_NAME} mein aapka swagat hai. "
-    "Main aapki appointment book karne mein madad karunga. "
-    "Kripya apna poora naam batayein."
+    f"नमस्ते! {CLINIC_NAME} में आपका स्वागत है। "
+    "मैं आपकी appointment book करने में मदद करूँगा। "
+    "कृपया अपना पूरा नाम बताएं।"
 )
 
 
@@ -184,7 +184,7 @@ class ConversationManager:
                 return await self._handle_slot_query(user_input)
             return await self._handle_slot_choice(user_input)
         elif self.state == State.DONE:
-            return "Aapki appointment pehle se book ho chuki hai. Dhanyavad!"
+            return "आपकी appointment पहले से book हो चुकी है। धन्यवाद!"
         return ""
 
     # ------------------------------------------------------------------
@@ -194,7 +194,7 @@ class ConversationManager:
     async def _handle_name(self, text: str) -> str:
         name = await self._extract_name(text)
         if not name:
-            return "Maafi chahta hoon, kripya apna poora naam batayein."
+            return "माफ़ी चाहते हैं, कृपया अपना पूरा नाम बताएं।"
         self.patient_name = name
         self.state = State.WAIT_DATETIME
         return _greeting_with_hours(self.patient_name)
@@ -212,7 +212,7 @@ class ConversationManager:
         date, time = dt.get("date"), dt.get("time")
 
         if date and self._is_past_date(date):
-            return "Yeh taareekh guzar chuki hai. Kripya aaj ya aane wali taareekh batayein."
+            return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
 
         if date and time:
             self.date, self.time = date, time
@@ -227,17 +227,17 @@ class ConversationManager:
             return _ask_date(self.time)
         else:
             return (
-                "Kripya taareekh aur samay batayein, "
-                "jaise 'kal shaam 4 baje' ya 'agle shukrawar subah 11 baje'."
+                "कृपया तारीख़ और समय बताएं, "
+                "जैसे 'कल शाम 4 बजे' या 'अगले शुक्रवार सुबह 11 बजे'।"
             )
 
     async def _handle_date_only(self, text: str) -> str:
         dt = await self._extract_datetime(text)
         date = dt.get("date")
         if not date:
-            return "Kripya taareekh batayein, jaise 'kal', 'parso', ya '25 April'."
+            return "कृपया तारीख़ बताएं, जैसे 'कल', 'परसों', या '25 April'।"
         if self._is_past_date(date):
-            return "Yeh taareekh guzar chuki hai. Kripya aaj ya aane wali taareekh batayein."
+            return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
         self.date = date
         return await self._check_slot()
 
@@ -245,7 +245,7 @@ class ConversationManager:
         dt = await self._extract_datetime(text)
         time = dt.get("time")
         if not time:
-            return "Kripya samay batayein, jaise 'subah 10 baje' ya 'shaam 3 baje'."
+            return "कृपया समय बताएं, जैसे 'सुबह 10 बजे' या 'शाम 3 बजे'।"
         # Apply PM flip: hour < 9 outside clinic hours means PM was intended
         try:
             h, m = map(int, time.split(":"))
@@ -264,7 +264,7 @@ class ConversationManager:
         # If user gave a completely new date, restart the slot check for that date
         if new_date and new_date != self.date:
             if self._is_past_date(new_date):
-                return "Yeh taareekh guzar chuki hai. Kripya aaj ya aane wali taareekh batayein."
+                return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
             self.date = new_date
             if time:
                 # Apply PM flip before storing
@@ -282,9 +282,9 @@ class ConversationManager:
         if not time:
             if not self.available_slots:
                 self.state = State.WAIT_DATETIME
-                return "Kripya taareekh aur samay batayein."
+                return "कृपया तारीख़ और समय बताएं।"
             slots_str = ", ".join(self.available_slots)
-            return f"Kripya inme se ek samay chunein: {slots_str} baje"
+            return f"कृपया इनमें से एक समय चुनें: {slots_str} बजे"
 
         # If LLM returned an AM time (hour < 9) that's outside clinic hours,
         # flip it to PM — e.g. "02:00" from "2 bje" → "14:00"
@@ -324,9 +324,9 @@ class ConversationManager:
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
-            return "Theek hai. Kripya naya din aur samay batayein."
+            return "ठीक है। कृपया नया दिन और समय बताएं।"
         else:
-            return f"{self.patient_name} ji, {self.date} ko {self.time} baje — kya confirm karun?"
+            return f"{self.patient_name} जी, {self.date} को {self.time} बजे — क्या confirm करूँ?"
 
     async def _book_now(self) -> str:
         result = self.calendar.book_appointment(
@@ -355,16 +355,16 @@ class ConversationManager:
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
-            return "Kripya taareekh phir se batayein, jaise 'kal', 'parso', ya '25 April'."
+            return "कृपया तारीख़ फिर से बताएं, जैसे 'कल', 'परसों', या '25 April'।"
 
         slots = self.calendar.get_available_slots(self.date)
         if slots is None:
-            return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
+            return "Calendar से जानकारी नहीं मिल पाई। कृपया थोड़ी देर बाद फिर try करें।"
         if slots == "SUNDAY":
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
-            return "Itwar ko clinic band rehti hai. Kripya koi aur din chunein, Monday se Saturday."
+            return "इतवार को clinic बंद रहती है। कृपया कोई और दिन चुनें, Monday से Saturday।"
 
         self.available_slots = slots
 
@@ -388,16 +388,16 @@ class ConversationManager:
                     self.time = ""
                     self.state = State.WAIT_SLOT_CHOICE
                     if next_slot:
-                        return f"{requested} baje ka samay nikal chuka hai. Agle available slot {next_slot} baje hai — confirm karun?"
+                        return f"{requested} बजे का समय निकल चुका है। अगला available slot {next_slot} बजे है — confirm करूँ?"
                     else:
                         self.date = ""
                         self.state = State.WAIT_DATETIME
-                        return "Aaj ke baaki saare slots nikal chuke hain. Kripya koi aur din batayein."
+                        return "आज के बाकी सारे slots निकल चुके हैं। कृपया कोई और दिन बताएं।"
                 else:
                     self.date = ""
                     self.time = ""
                     self.state = State.WAIT_DATETIME
-                    return "Aaj ke baaki saare slots nikal chuke hain. Kripya koi aur din batayein."
+                    return "आज के बाकी सारे slots निकल चुके हैं। कृपया कोई और दिन बताएं।"
 
         if not slots:
             import datetime as _dt
@@ -421,8 +421,8 @@ class ConversationManager:
             self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
-                f"{self.date} ko {first} baje se {last} baje tak slots available hain. "
-                "Aap kaunsa samay prefer karenge?"
+                f"{self.date} को {first} बजे से {last} बजे तक slots available हैं। "
+                "आप कौनसा समय prefer करेंगे?"
             )
         else:
             before, after = _nearby_slots(self.time, slots)
@@ -479,19 +479,19 @@ class ConversationManager:
         query_time = dt.get("time")
 
         if not query_date:
-            return "Kripya taareekh batayein jiske baare mein jaanna chahte hain."
+            return "कृपया तारीख़ बताएं जिसके बारे में जानना चाहते हैं।"
 
         import re as _re
         if not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", query_date):
-            return "Kripya sahi taareekh batayein."
+            return "कृपया सही तारीख़ बताएं।"
 
         all_slots = self.calendar.get_available_slots(query_date)
         if all_slots is None:
-            return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
+            return "Calendar से जानकारी नहीं मिल पाई। कृपया थोड़ी देर बाद फिर try करें।"
         if all_slots == "SUNDAY":
             self.date = ""
             self.state = State.WAIT_DATETIME
-            return "Itwar ko clinic band rehti hai. Kripya koi aur din chunein, Monday se Saturday."
+            return "इतवार को clinic बंद रहती है। कृपया कोई और दिन चुनें, Monday से Saturday।"
         slots = [s for s in all_slots if not self._is_past_slot(query_date, s)]
 
         # Remember the queried date so follow-up "book kar do" works without re-asking
@@ -524,14 +524,14 @@ class ConversationManager:
                     if next_slot:
                         self.time = ""
                         self.state = State.WAIT_SLOT_CHOICE
-                        return f"{query_time} baje ka samay nikal chuka hai. Agle available slot {next_slot} baje hai — confirm karun?"
-                return "Aaj ke baaki saare slots nikal chuke hain. Kripya koi aur din batayein."
+                        return f"{query_time} बजे का समय निकल चुका है। अगला available slot {next_slot} बजे है — confirm करूँ?"
+                return "आज के बाकी सारे slots निकल चुके हैं। कृपया कोई और दिन बताएं।"
             # Caller asked about a specific time on that date
             if query_time in slots:
                 # Slot IS available — prime for confirmation
                 self.time = query_time
                 self.state = State.WAIT_CONFIRM
-                return f"{query_date} ko {query_time} baje ka slot available hai. Kya main yeh book karun?"
+                return f"{query_date} को {query_time} बजे का slot available है। क्या मैं यह book करूँ?"
             before, after = _nearby_slots(query_time, slots)
             # Slot not available — prime for slot choice
             self.time = query_time
@@ -542,8 +542,8 @@ class ConversationManager:
             self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
-                f"{query_date} ko {first} baje se {last} baje tak slots available hain. "
-                "Aap kaunsa samay prefer karenge?"
+                f"{query_date} को {first} बजे से {last} बजे तक slots available हैं। "
+                "आप कौनसा समय prefer करेंगे?"
             )
 
     # ------------------------------------------------------------------
