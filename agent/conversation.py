@@ -158,10 +158,16 @@ class ConversationManager:
                 return await self._handle_slot_query(user_input)
             return await self._handle_datetime(user_input)
         elif self.state == State.WAIT_DATE:
+            if await self._is_slot_query(user_input):
+                return await self._handle_slot_query(user_input)
             return await self._handle_date_only(user_input)
         elif self.state == State.WAIT_TIME:
+            if await self._is_slot_query(user_input):
+                return await self._handle_slot_query(user_input)
             return await self._handle_time_only(user_input)
         elif self.state == State.WAIT_CONFIRM:
+            if await self._is_slot_query(user_input):
+                return await self._handle_slot_query(user_input)
             return await self._handle_confirm(user_input)
         elif self.state == State.WAIT_SLOT_CHOICE:
             # Also handle availability questions during slot choice
@@ -431,28 +437,30 @@ class ConversationManager:
 
         # Remember the queried date so follow-up "book kar do" works without re-asking
         self.date = query_date
-        if not query_time:
-            # We have a date but no time — move to WAIT_TIME for follow-up booking
-            self.state = State.WAIT_TIME
-        else:
-            # We have both date and time from the query — prime for slot choice
-            self.time = query_time
-            self.state = State.WAIT_SLOT_CHOICE
         self.available_slots = slots
 
         if not slots:
             import datetime as _dt
             is_today = query_date == _dt.date.today().isoformat()
+            self.date = ""
+            self.state = State.WAIT_DATETIME
             return _no_slots_on_date(query_date, is_today=is_today)
 
         if query_time:
             # Caller asked about a specific time on that date
             if query_time in slots:
+                # Slot IS available — prime for confirmation
+                self.time = query_time
+                self.state = State.WAIT_CONFIRM
                 return f"{query_date} ko {query_time} baje ka slot available hai. Kya main yeh book karun?"
             before, after = _nearby_slots(query_time, slots)
+            # Slot not available — prime for slot choice
+            self.time = query_time
+            self.state = State.WAIT_SLOT_CHOICE
             return _slot_taken_nearby(query_date, query_time, before, after)
         else:
-            # Caller asked generally — give first and last available as a range
+            # No time given — ask for time next
+            self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
                 f"{query_date} ko {first} baje se {last} baje tak slots available hain. "
