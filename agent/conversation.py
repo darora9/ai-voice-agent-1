@@ -595,8 +595,8 @@ class ConversationManager:
             weekday_map[hi] = target
 
         weekday_examples = "; ".join(
-            f"'next {en}' or '{en}' or '{hi}'->{date}"
-            for (en, hi), date in zip(zip(weekday_names, hindi_weekdays), weekday_map[n] for n in weekday_names)
+            f"'next {en}' or '{en}' or '{hi}'->{weekday_map[en]}"
+            for en, hi in zip(weekday_names, hindi_weekdays)
         )
 
         try:
