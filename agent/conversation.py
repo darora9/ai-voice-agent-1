@@ -431,7 +431,14 @@ class ConversationManager:
 
         # Remember the queried date so follow-up "book kar do" works without re-asking
         self.date = query_date
-        self.state = State.WAIT_TIME if not query_time else self.state
+        if not query_time:
+            # We have a date but no time — move to WAIT_TIME for follow-up booking
+            self.state = State.WAIT_TIME
+        else:
+            # We have both date and time from the query — prime for slot choice
+            self.time = query_time
+            self.state = State.WAIT_SLOT_CHOICE
+        self.available_slots = slots
 
         if not slots:
             import datetime as _dt
@@ -484,37 +491,36 @@ class ConversationManager:
 
     async def _extract_datetime(self, text: str) -> dict:
         import datetime as _dt
-        try:
-            today_obj = _dt.date.today()
-        today = today_obj.isoformat()
+        today_obj = _dt.date.today()
+        today    = today_obj.isoformat()
         tomorrow = (today_obj + _dt.timedelta(days=1)).isoformat()
         day_after = (today_obj + _dt.timedelta(days=2)).isoformat()
-
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        f"Today is {today} (YYYY-MM-DD). "
-                        "Extract date and/or time from Hindi/English text. "
-                        "ALWAYS return actual calendar dates in YYYY-MM-DD format, never placeholder words. "
-                        "Return JSON: {\"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM\"} — use null if not present. "
-                        "Relative dates: 'aaj'=today, 'kal'=tomorrow, 'parso'=day after tomorrow, 'agle X'=next X. "
-                        "Time words: 'subah'=morning (AM, keep as-is), 'dopahar'=noon (12:00-15:00), "
-                        "'shaam'=evening (add 12 if hour<8, e.g. shaam 5=17:00), 'raat'=night (add 12 if hour<8). "
-                        "No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. "
-                        "Examples: '2 bje'->14:00, '3 baje'->15:00, '10 baje'->10:00, '11 bje'->11:00. "
-                        f"Examples using today={today}: "
-                        f"'kal shaam 5 baje'->{{\"date\":\"{tomorrow}\",\"time\":\"17:00\"}}, "
-                        f"'parso shaam 5 bje'->{{\"date\":\"{day_after}\",\"time\":\"17:00\"}}, "
-                        f"'subah 10 baje'->{{\"date\":null,\"time\":\"10:00\"}}, "
-                        f"'parso'->{{\"date\":\"{day_after}\",\"time\":null}}."
-                    ),
-                },
-                {"role": "user", "content": text},
-            ],
-            response_format={"type": "json_object"},
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            f"Today is {today} (YYYY-MM-DD). "
+                            "Extract date and/or time from Hindi/English text. "
+                            "ALWAYS return actual calendar dates in YYYY-MM-DD format, never placeholder words. "
+                            'Return JSON: {"date": "YYYY-MM-DD", "time": "HH:MM"} — use null if not present. '
+                            "Relative dates: 'aaj'=today, 'kal'=tomorrow, 'parso'=day after tomorrow, 'agle X'=next X. "
+                            "Time words: 'subah'=morning (AM), 'dopahar'=noon (12:00-15:00), "
+                            "'shaam'=evening (add 12 if hour<8, e.g. shaam 5=17:00), 'raat'=night (add 12 if hour<8). "
+                            "No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. "
+                            "Examples: '2 bje'->14:00, '3 baje'->15:00, '10 baje'->10:00, '11 bje'->11:00. "
+                            f"Examples using today={today}: "
+                            f"'kal shaam 5 baje'->" + '{"date":"' + tomorrow + '","time":"17:00"}, '
+                            f"'parso shaam 5 bje'->" + '{"date":"' + day_after + '","time":"17:00"}, '
+                            f"'subah 10 baje'->" + '{"date":null,"time":"10:00"}, '
+                            f"'parso'->" + '{"date":"' + day_after + '","time":null}.'
+                        ),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                response_format={"type": "json_object"},
                 temperature=0,
                 max_tokens=50,
             )
