@@ -71,7 +71,7 @@ def record_twiml(audio_url: str, action_url: str) -> str:
 <Response>
     <Play>{audio_url}</Play>
     <Record action="{action_url}" method="POST"
-            timeout="5" finishOnKey="" playBeep="false"
+            timeout="3" finishOnKey="#" playBeep="true"
             maxLength="30" trim="trim-silence"/>
 </Response>"""
 
@@ -147,7 +147,8 @@ async def handle_recording(request: Request):
     transcript = await speech_service.transcribe_wav_bytes(wav_bytes)
     print(f"[Caller] {transcript}")
 
-    if not transcript.strip():
+    # Guard: Whisper returns the prompt verbatim when audio is silent
+    if not transcript.strip() or "Caller may say" in transcript or len(transcript) < 2:
         filename = await tts_to_file(
             "Kripya apna jawab phir se bolein.", call_sid, "notrans")
         return Response(
@@ -189,6 +190,4 @@ async def call_status(request: Request):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
-
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
