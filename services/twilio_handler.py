@@ -122,10 +122,14 @@ class TwilioMediaHandler:
         """Convert text to speech and stream back to Twilio."""
         self._is_agent_speaking = True
         try:
+            print(f"[TTS] Synthesizing: {text[:60]}")
             audio_bytes = await self.speech.synthesize(text)
-            # Encode as mulaw 8kHz for Twilio
+            print(f"[TTS] Got {len(audio_bytes)} bytes")
             mulaw_audio = self.speech.pcm_to_mulaw(audio_bytes)
+            print(f"[TTS] Sending {len(mulaw_audio)} mulaw bytes")
             await self._send_audio(mulaw_audio)
+        except Exception as e:
+            print(f"[TTS Error] {e}")
         finally:
             self._is_agent_speaking = False
 

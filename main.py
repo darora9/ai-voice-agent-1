@@ -46,12 +46,9 @@ async def incoming_call(request: Request):
     host = request.headers.get("host")
     ws_scheme = "wss" if "ngrok" in host or os.getenv("USE_WSS", "false") == "true" else "ws"
 
-    # Vobiz XML — same structure as TwiML; <Speak> replaces <Say>
+    # Twilio TwiML — connect directly to media stream, greeting is sent via WebSocket
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak language="hi-IN">
-        Namaste! Aap doctor ke appointment booking service mein aaye hain. Please hold on.
-    </Speak>
     <Connect>
         <Stream url="{ws_scheme}://{host}/media-stream" />
     </Connect>
