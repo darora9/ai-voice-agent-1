@@ -124,7 +124,7 @@ class StreamSession:
     async def _pipeline(self, mulaw_audio: bytes):
         self._processing = True
         try:
-            # Sarvam Saaras v2 codemix -- purpose-built for Hindi+English names
+            # Sarvam Saaras v3 codemix -- purpose-built for Hindi+English names
             transcript = await self.speech.transcribe_mulaw(mulaw_audio)
             print(f"[Caller] {transcript}")
 

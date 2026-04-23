@@ -269,8 +269,11 @@ class ConversationManager:
             return await self._check_slot()
 
         if not time:
+            if not self.available_slots:
+                self.state = State.WAIT_DATETIME
+                return "Kripya taareekh aur samay batayein."
             slots_str = ", ".join(self.available_slots)
-            return f"Kripya inme se ek samay chunein: {slots_str}"
+            return f"Kripya inme se ek samay chunein: {slots_str} baje"
 
         # If LLM returned an AM time (hour < 9) that's outside clinic hours,
         # flip it to PM — e.g. "02:00" from "2 bje" → "14:00"
@@ -372,6 +375,14 @@ class ConversationManager:
             self.time = matched
             self.state = State.WAIT_CONFIRM
             return _slot_available_confirm(self.patient_name, self.date, self.time)
+        elif not self.time:
+            # No preferred time — just ask for one
+            self.state = State.WAIT_TIME
+            first, last = slots[0], slots[-1]
+            return (
+                f"{self.date} ko {first} baje se {last} baje tak slots available hain. "
+                "Aap kaunsa samay prefer karenge?"
+            )
         else:
             before, after = _nearby_slots(self.time, slots)
             self.state = State.WAIT_SLOT_CHOICE
@@ -447,6 +458,13 @@ class ConversationManager:
             return _no_slots_on_date(query_date, is_today=is_today)
 
         if query_time:
+            # Apply PM flip same as other handlers
+            try:
+                h, m = map(int, query_time.split(":"))
+                if h < 9:
+                    query_time = f"{h + 12:02d}:{m:02d}"
+            except Exception:
+                pass
             # Caller asked about a specific time on that date
             if query_time in slots:
                 # Slot IS available — prime for confirmation
