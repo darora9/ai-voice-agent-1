@@ -30,11 +30,10 @@ class TwilioMediaHandler:
 
         # Audio buffer: Twilio sends mulaw 8kHz; accumulate chunks before STT
         self._audio_buffer = bytearray()
-        self._silence_threshold = 30         # RMS below = silence (observed RMS=9 in real calls)
-        self._speech_threshold = 50          # RMS above = real speech confirmed
-        self._min_speech_bytes = 8000        # ~1 second of audio before processing
+        self._speech_threshold = 300         # RMS above = real speech (background noise ~50, voice ~877+)
+        self._min_speech_bytes = 6400        # ~0.8s of audio before processing
         self._silent_chunks = 0
-        self._silent_chunks_threshold = 15   # ~1.5s silence → trigger STT
+        self._silent_chunks_threshold = 12   # ~1.2s of non-speech after speech → trigger STT
         self._has_speech = False             # guard: only STT if real speech detected
         self._total_chunks = 0               # for debug logging
 
@@ -89,15 +88,14 @@ class TwilioMediaHandler:
             print(f"[Audio] buffer={len(self._audio_buffer)}B rms={rms} silent={self._silent_chunks} has_speech={self._has_speech}")
 
         if rms >= self._speech_threshold:
+            # Real voice detected
             self._has_speech = True
             self._silent_chunks = 0
-        elif rms < self._silence_threshold:
+        elif self._has_speech:
+            # After speech started, anything below threshold counts as silence
             self._silent_chunks += 1
-        else:
-            # mid-range: not speech, not silence — don't reset silent counter
-            pass
 
-        # Trigger STT only if real speech was detected + followed by silence
+        # Trigger STT: real speech was heard + followed by enough silence
         if (
             self._has_speech
             and len(self._audio_buffer) >= self._min_speech_bytes
