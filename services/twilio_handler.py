@@ -30,10 +30,12 @@ class TwilioMediaHandler:
 
         # Audio buffer: Twilio sends mulaw 8kHz; accumulate chunks before STT
         self._audio_buffer = bytearray()
-        self._silence_threshold = 200        # RMS energy below = silence (mulaw 8kHz)
+        self._silence_threshold = 30         # RMS below = silence (observed RMS=9 in real calls)
+        self._speech_threshold = 50          # RMS above = real speech confirmed
         self._min_speech_bytes = 8000        # ~1 second of audio before processing
         self._silent_chunks = 0
         self._silent_chunks_threshold = 15   # ~1.5s silence → trigger STT
+        self._has_speech = False             # guard: only STT if real speech detected
         self._total_chunks = 0               # for debug logging
 
         self._is_agent_speaking = False
@@ -84,18 +86,22 @@ class TwilioMediaHandler:
             rms = 0
 
         self._total_chunks += 1
-        # Log RMS every 50 chunks so we can tune the threshold
         if self._total_chunks % 50 == 0:
-            print(f"[Audio] buffer={len(self._audio_buffer)}B rms={rms} silent_chunks={self._silent_chunks}")
+            print(f"[Audio] buffer={len(self._audio_buffer)}B rms={rms} silent={self._silent_chunks} has_speech={self._has_speech}")
 
-        if rms < self._silence_threshold:
+        if rms >= self._speech_threshold:
+            self._has_speech = True
+            self._silent_chunks = 0
+        elif rms < self._silence_threshold:
             self._silent_chunks += 1
         else:
-            self._silent_chunks = 0  # Reset on speech
+            # mid-range: not speech, not silence — don't reset silent counter
+            pass
 
-        # Trigger STT when: enough audio collected + silence detected
+        # Trigger STT only if real speech was detected + followed by silence
         if (
-            len(self._audio_buffer) >= self._min_speech_bytes
+            self._has_speech
+            and len(self._audio_buffer) >= self._min_speech_bytes
             and self._silent_chunks >= self._silent_chunks_threshold
         ):
             await self._process_speech()
@@ -106,6 +112,7 @@ class TwilioMediaHandler:
             audio_data = bytes(self._audio_buffer)
             self._audio_buffer.clear()
             self._silent_chunks = 0
+            self._has_speech = False
 
             if not audio_data:
                 return
@@ -144,6 +151,7 @@ class TwilioMediaHandler:
         finally:
             self._audio_buffer.clear()
             self._silent_chunks = 0
+            self._has_speech = False
             self._is_agent_speaking = False
 
     async def _send_audio(self, mulaw_audio: bytes):
