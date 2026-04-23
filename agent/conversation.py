@@ -366,6 +366,30 @@ class ConversationManager:
         ]
         slots = self.available_slots
 
+        # If the requested time has passed today, give a specific message
+        if self.time and self._is_past_slot(self.date, self.time):
+            import datetime as _dt
+            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+            is_today = self.date == _dt.datetime.now(tz=IST).date().isoformat()
+            if is_today:
+                if slots:
+                    before, after = _nearby_slots(self.time, slots)
+                    next_slot = after or before
+                    requested = self.time
+                    self.time = ""
+                    self.state = State.WAIT_SLOT_CHOICE
+                    if next_slot:
+                        return f"{requested} baje ka samay nikal chuka hai. Agle available slot {next_slot} baje hai — confirm karun?"
+                    else:
+                        self.date = ""
+                        self.state = State.WAIT_DATETIME
+                        return "Aaj ke baaki saare slots nikal chuke hain. Kripya koi aur din batayein."
+                else:
+                    self.date = ""
+                    self.time = ""
+                    self.state = State.WAIT_DATETIME
+                    return "Aaj ke baaki saare slots nikal chuke hain. Kripya koi aur din batayein."
+
         if not slots:
             import datetime as _dt
             IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
@@ -481,6 +505,18 @@ class ConversationManager:
                     query_time = f"{h + 12:02d}:{m:02d}"
             except Exception:
                 pass
+            # Check if requested time is already in the past (today only)
+            import datetime as _dt
+            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+            if self._is_past_slot(query_date, query_time) and query_date == _dt.datetime.now(tz=IST).date().isoformat():
+                if slots:
+                    before, after = _nearby_slots(query_time, slots)
+                    next_slot = after or before
+                    if next_slot:
+                        self.time = ""
+                        self.state = State.WAIT_SLOT_CHOICE
+                        return f"{query_time} baje ka samay nikal chuka hai. Agle available slot {next_slot} baje hai — confirm karun?"
+                return "Aaj ke baaki saare slots nikal chuke hain. Kripya koi aur din batayein."
             # Caller asked about a specific time on that date
             if query_time in slots:
                 # Slot IS available — prime for confirmation
