@@ -331,6 +331,9 @@ class ConversationManager:
             return "Kripya taareekh phir se batayein, jaise 'kal', 'parso', ya '25 April'."
 
         slots = self.calendar.get_available_slots(self.date)
+        if slots is None:
+            return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
+
         self.available_slots = slots
 
         # Filter out slots that are already in the past (relevant for today)
@@ -414,6 +417,8 @@ class ConversationManager:
             return "Kripya sahi taareekh batayein."
 
         all_slots = self.calendar.get_available_slots(query_date)
+        if all_slots is None:
+            return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
         slots = [s for s in all_slots if not self._is_past_slot(query_date, s)]
 
         if not slots:

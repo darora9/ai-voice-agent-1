@@ -131,4 +131,4 @@ class CalendarService:
 
         except Exception as e:
             print(f"[Calendar Error] {e}")
-            return []
+            return None  # None = error, [] = genuinely no slots
