@@ -1,8 +1,8 @@
 """
 Speech services:
-  STT → Groq Whisper large-v3  (free tier, excellent Hindi support)
-  TTS → Sarvam bulbul:v3        (natural Hindi voice)
-Handles mulaw ↔ PCM conversion for Vobiz media streams.
+  STT → Sarvam Saaras v3  (Indian language, codemix mode for Hindi+English names)
+  TTS → Sarvam bulbul:v3  (natural Hindi voice)
+Handles mulaw ↔ PCM conversion for Twilio media streams.
 """
 
 import os
@@ -11,7 +11,6 @@ import base64
 import audioop
 import wave
 import httpx
-from groq import AsyncGroq
 
 
 SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
@@ -19,19 +18,18 @@ SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
 
 class SpeechService:
     def __init__(self):
-        self._groq = AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
         self._sarvam_key = os.environ["SARVAM_API_KEY"]
         self._tts_speaker = os.getenv("SARVAM_TTS_SPEAKER", "priya")  # Hindi female voice
         self._tts_lang = os.getenv("SARVAM_LANGUAGE_CODE", "hi-IN")
 
     # ------------------------------------------------------------------
-    # Speech-to-Text  (mulaw 8kHz → Hindi transcript via Groq Whisper)
+    # Speech-to-Text  (mulaw 8kHz → Hindi transcript via Sarvam Saaras v3)
     # ------------------------------------------------------------------
 
     async def transcribe_mulaw(self, mulaw_audio: bytes) -> str:
         """
-        Convert mulaw 8kHz → 16kHz WAV, transcribe with Groq whisper-large-v3.
-        language='hi' forces Hindi; Whisper still handles Hinglish fine.
+        Convert mulaw 8kHz → 16kHz WAV, transcribe with Sarvam Saaras v3.
+        Uses codemix mode so Hindi+English names are preserved in Latin script.
         Returns the transcript string.
         """
         try:
@@ -46,18 +44,22 @@ class SpeechService:
                 wf.setframerate(16000)
                 wf.writeframes(pcm_16k)
             wav_buffer.seek(0)
-            wav_buffer.name = "audio.wav"
 
-            response = await self._groq.audio.transcriptions.create(
-                file=("audio.wav", wav_buffer.read(), "audio/wav"),
-                model="whisper-large-v3",
-                language="hi",
-                prompt="यह एक Hindi conversation है doctor appointment booking के लिए। Caller अपना नाम English या Hindi में बोल सकता है जैसे Rahul, Priya, Rishav, Sharma, etc. तारीख और समय भी बोल सकता है।",
-                response_format="text",
-                temperature=0.0,
-            )
-            transcript = str(response).strip()
-            print(f"[STT] Raw transcript: {transcript}")
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(
+                    "https://api.sarvam.ai/speech-to-text",
+                    headers={"api-subscription-key": self._sarvam_key},
+                    files={"file": ("audio.wav", wav_buffer.read(), "audio/wav")},
+                    data={
+                        "model": "saaras:v3",
+                        "mode": "codemix",          # preserves English names like Rahul, Rishav
+                        "language_code": "hi-IN",
+                    },
+                )
+                response.raise_for_status()
+                transcript = response.json().get("transcript", "").strip()
+
+            print(f"[STT] {transcript}")
             return transcript
 
         except Exception as e:
