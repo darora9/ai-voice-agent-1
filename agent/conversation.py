@@ -55,7 +55,7 @@ def _ask_date(time: str) -> str:
 def _slot_available_confirm(name: str, date: str, time: str) -> str:
     return (
         f"{name} ji, {date} ko {time} baje ka slot available hai. "
-        "Kya main yeh appointment confirm karun? (Haan / Nahin)"
+        "Kya main yeh appointment confirm karun?"
     )
 
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
@@ -254,7 +254,7 @@ class ConversationManager:
             self.state = State.WAIT_DATETIME
             return "Theek hai. Kripya naya din aur samay batayein."
         else:
-            return f"{self.patient_name} ji, {self.date} ko {self.time} baje — kya confirm karun? (Haan / Nahin)"
+            return f"{self.patient_name} ji, {self.date} ko {self.time} baje — kya confirm karun?"
 
     async def _book_now(self) -> str:
         result = self.calendar.book_appointment(

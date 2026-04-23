@@ -157,8 +157,11 @@ class StreamSession:
             await self._speak(response)
 
             if self.conversation.state == State.DONE:
-                await asyncio.sleep(1.5)
-                await self._ws.close()
+                # _speak already waited for audio to finish; just close cleanly
+                try:
+                    await self._ws.close()
+                except Exception:
+                    pass  # Twilio may have already closed the socket
         finally:
             self._processing = False
 
@@ -172,8 +175,9 @@ class StreamSession:
             return
 
         mulaw = audioop.lin2ulaw(pcm, 2)
+        duration = len(mulaw) / 8000.0
         # Mute inbound for the full TTS duration + 500ms buffer
-        self._muted_until = time.monotonic() + len(mulaw) / 8000.0 + 0.5
+        self._muted_until = time.monotonic() + duration + 0.5
 
         for i in range(0, len(mulaw), TTS_CHUNK):
             await self._ws.send_text(json.dumps({
@@ -181,3 +185,6 @@ class StreamSession:
                 "streamSid": self.stream_sid,
                 "media": {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
             }))
+
+        # Wait for Twilio to finish playing before returning
+        await asyncio.sleep(duration)
