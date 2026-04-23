@@ -121,6 +121,8 @@ class TwilioMediaHandler:
     async def _speak(self, text: str):
         """Convert text to speech and stream back to Twilio."""
         self._is_agent_speaking = True
+        self._audio_buffer.clear()
+        self._silent_chunks = 0
         try:
             print(f"[TTS] Synthesizing: {text[:60]}")
             audio_bytes = await self.speech.synthesize(text)
@@ -128,9 +130,14 @@ class TwilioMediaHandler:
             mulaw_audio = self.speech.pcm_to_mulaw(audio_bytes)
             print(f"[TTS] Sending {len(mulaw_audio)} mulaw bytes")
             await self._send_audio(mulaw_audio)
+            # Wait for audio to finish playing + extra buffer to prevent echo
+            audio_duration_secs = len(mulaw_audio) / 8000
+            await asyncio.sleep(audio_duration_secs + 0.8)
         except Exception as e:
             print(f"[TTS Error] {e}")
         finally:
+            self._audio_buffer.clear()
+            self._silent_chunks = 0
             self._is_agent_speaking = False
 
     async def _send_audio(self, mulaw_audio: bytes):

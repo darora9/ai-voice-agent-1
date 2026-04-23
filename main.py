@@ -44,7 +44,14 @@ async def incoming_call(request: Request):
     Returns TwiML to connect to media stream WebSocket.
     """
     host = request.headers.get("host")
-    ws_scheme = "wss" if "ngrok" in host or os.getenv("USE_WSS", "false") == "true" else "ws"
+    # Always use wss:// on Railway and any HTTPS host; ws:// only for local
+    use_wss = (
+        os.getenv("USE_WSS", "false") == "true"
+        or "railway.app" in host
+        or "ngrok" in host
+        or "ngrok-free" in host
+    )
+    ws_scheme = "wss" if use_wss else "ws"
 
     # Twilio TwiML — connect directly to media stream, greeting is sent via WebSocket
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
