@@ -61,8 +61,7 @@ class TwilioMediaHandler:
             self.stream_sid = msg["start"]["streamSid"]
             self.call_sid = msg["start"]["callSid"]
             print(f"[Stream] Started: {self.stream_sid}")
-            # Greet the caller
-            await self._speak(self.conversation.get_greeting())
+            asyncio.create_task(self._speak(self.conversation.get_greeting()))
 
         elif event == "media":
             if self._is_agent_speaking:
@@ -129,7 +128,7 @@ class TwilioMediaHandler:
             print(f"[Agent] {response_text}")
 
             if response_text:
-                await self._speak(response_text)
+                asyncio.create_task(self._speak(response_text))
 
     async def _speak(self, text: str):
         """Convert text to speech and stream back to Twilio."""
