@@ -21,7 +21,7 @@ class SpeechService:
     def __init__(self):
         self._groq = AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
         self._sarvam_key = os.environ["SARVAM_API_KEY"]
-        self._tts_speaker = os.getenv("SARVAM_TTS_SPEAKER", "ananya")  # Hindi female voice
+        self._tts_speaker = os.getenv("SARVAM_TTS_SPEAKER", "priya")  # Hindi female voice
         self._tts_lang = os.getenv("SARVAM_LANGUAGE_CODE", "hi-IN")
 
     # ------------------------------------------------------------------
@@ -77,7 +77,7 @@ class SpeechService:
                 response = await client.post(
                     SARVAM_TTS_URL,
                     headers={
-                        "api-subscription-key": self._api_key,
+                        "api-subscription-key": self._sarvam_key,
                         "Content-Type": "application/json",
                     },
                     json={
