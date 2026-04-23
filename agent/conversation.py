@@ -559,8 +559,9 @@ class ConversationManager:
                         "role": "system",
                         "content": (
                             "Extract the person's name from the text. "
+                            "The input may be Hindi (Devanagari script), English, or a mix of both. "
                             "It can be a single name or full name — both are valid. "
-                            "Capitalize it properly. "
+                            "Capitalize it properly using Latin script (e.g. 'Krishna', 'Priya', 'Rahul'). "
                             'Return only JSON: {"name": "Name"} or {"name": null} if no name is present.'
                         ),
                     },
@@ -610,12 +611,17 @@ class ConversationManager:
                             "Extract date and/or time from Hindi/English text. "
                             "ALWAYS return actual calendar dates in YYYY-MM-DD format, never placeholder words. "
                             'Return JSON: {"date": "YYYY-MM-DD", "time": "HH:MM"} — use null if not present. '
-                            "Relative dates: 'aaj'=today, 'kal'=tomorrow, 'parso'=day after tomorrow, 'agle X'=next X. "
+                            "The input may be Hindi (Devanagari), English, or a mix. "
+                            "Relative dates: "
+                            "'aaj'/'आज'=today, 'kal'/'कल'=tomorrow, 'parso'/'परसों'=day after tomorrow, "
+                            "'agle'/'अगले'/'agli'/'अगली' X=next X. "
                             f"Weekday names always mean the NEXT upcoming occurrence: {weekday_examples}. "
-                            "Time words: 'subah'=morning (AM), 'dopahar'=noon (12:00-15:00), "
-                            "'shaam'=evening (add 12 if hour<8, e.g. shaam 5=17:00), 'raat'=night (add 12 if hour<8). "
+                            "Time words: 'subah'/'सुबह'=morning (AM), 'dopahar'/'दोपहर'=noon (12:00-15:00), "
+                            "'shaam'/'शाम'=evening (add 12 if hour<8, e.g. shaam 5=17:00), "
+                            "'raat'/'रात'=night (add 12 if hour<8). "
                             "No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. "
-                            "Examples: '2 bje'->14:00, '3 baje'->15:00, '10 baje'->10:00, '11 bje'->11:00. "
+                            "'baje'/'बजे'/'bje' means o'clock. Examples: '2 bje'->14:00, '3 बजे'->15:00, '10 बजे'->10:00. "
+                            "'sawa'/'सवा'=+15min (सवा 3=3:15), 'saadhe'/'साढ़े'=+30min (साढ़े 3=3:30). "
                             f"Examples using today={today}: "
                             f"'kal shaam 5 baje'->" + '{"date":"' + tomorrow + '","time":"17:00"}, '
                             f"'parso shaam 5 bje'->" + '{"date":"' + day_after + '","time":"17:00"}, '
