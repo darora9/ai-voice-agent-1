@@ -30,10 +30,11 @@ class TwilioMediaHandler:
 
         # Audio buffer: Twilio sends mulaw 8kHz; accumulate chunks before STT
         self._audio_buffer = bytearray()
-        self._silence_threshold = 500        # RMS energy below = silence
-        self._min_speech_bytes = 16000 * 2   # ~2 seconds of audio before processing
+        self._silence_threshold = 200        # RMS energy below = silence (mulaw 8kHz)
+        self._min_speech_bytes = 8000        # ~1 second of audio before processing
         self._silent_chunks = 0
-        self._silent_chunks_threshold = 20   # ~2s silence → trigger STT
+        self._silent_chunks_threshold = 15   # ~1.5s silence → trigger STT
+        self._total_chunks = 0               # for debug logging
 
         self._is_agent_speaking = False
         self._processing_lock = asyncio.Lock()
@@ -81,6 +82,11 @@ class TwilioMediaHandler:
             rms = audioop.rms(pcm, 2)
         except Exception:
             rms = 0
+
+        self._total_chunks += 1
+        # Log RMS every 50 chunks so we can tune the threshold
+        if self._total_chunks % 50 == 0:
+            print(f"[Audio] buffer={len(self._audio_buffer)}B rms={rms} silent_chunks={self._silent_chunks}")
 
         if rms < self._silence_threshold:
             self._silent_chunks += 1
