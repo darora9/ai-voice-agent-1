@@ -113,7 +113,7 @@ class SpeechService:
                         "speaker": self._tts_speaker,
                         "model": "bulbul:v3",
                         "speech_sample_rate": 8000,
-                        "pace": 0.9,   # slightly slower — easier to understand on phone
+                        "pace": 1.0,
                     },
                 )
                 response.raise_for_status()
