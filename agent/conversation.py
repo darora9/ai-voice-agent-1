@@ -351,6 +351,11 @@ class ConversationManager:
         slots = self.calendar.get_available_slots(self.date)
         if slots is None:
             return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
+        if slots == "SUNDAY":
+            self.date = ""
+            self.time = ""
+            self.state = State.WAIT_DATETIME
+            return "Itwar ko clinic band rehti hai. Kripya koi aur din chunein, Monday se Saturday."
 
         self.available_slots = slots
 
@@ -363,8 +368,9 @@ class ConversationManager:
 
         if not slots:
             import datetime as _dt
+            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
             saved_date = self.date
-            is_today = saved_date == _dt.date.today().isoformat()
+            is_today = saved_date == _dt.datetime.now(tz=IST).date().isoformat()
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
@@ -393,7 +399,9 @@ class ConversationManager:
     def _is_past_date(self, date: str) -> bool:
         import datetime as _dt
         try:
-            return _dt.date.fromisoformat(date) < _dt.date.today()
+            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+            today_ist = _dt.datetime.now(tz=IST).date()
+            return _dt.date.fromisoformat(date) < today_ist
         except Exception:
             return False
 
@@ -447,6 +455,10 @@ class ConversationManager:
         all_slots = self.calendar.get_available_slots(query_date)
         if all_slots is None:
             return "Calendar se jaankari nahi mil payi. Kripya thodi der baad phir try karein."
+        if all_slots == "SUNDAY":
+            self.date = ""
+            self.state = State.WAIT_DATETIME
+            return "Itwar ko clinic band rehti hai. Kripya koi aur din chunein, Monday se Saturday."
         slots = [s for s in all_slots if not self._is_past_slot(query_date, s)]
 
         # Remember the queried date so follow-up "book kar do" works without re-asking
@@ -455,7 +467,8 @@ class ConversationManager:
 
         if not slots:
             import datetime as _dt
-            is_today = query_date == _dt.date.today().isoformat()
+            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+            is_today = query_date == _dt.datetime.now(tz=IST).date().isoformat()
             self.date = ""
             self.state = State.WAIT_DATETIME
             return _no_slots_on_date(query_date, is_today=is_today)
@@ -520,7 +533,8 @@ class ConversationManager:
 
     async def _extract_datetime(self, text: str) -> dict:
         import datetime as _dt
-        today_obj = _dt.date.today()
+        IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        today_obj = _dt.datetime.now(tz=IST).date()
         today    = today_obj.isoformat()
         tomorrow = (today_obj + _dt.timedelta(days=1)).isoformat()
         day_after = (today_obj + _dt.timedelta(days=2)).isoformat()
