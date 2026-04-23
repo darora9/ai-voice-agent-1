@@ -58,24 +58,50 @@ def _slot_available_confirm(name: str, date: str, time: str) -> str:
         "Kya main yeh appointment confirm karun?"
     )
 
+def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | None]:
+    """Return (slot_before, slot_after) closest to requested time from available list."""
+    if not available:
+        return None, None
+    before = None
+    after = None
+    for s in sorted(available):
+        if s < requested:
+            before = s
+        elif s > requested and after is None:
+            after = s
+    return before, after
+
+
+def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | None) -> str:
+    parts = []
+    if before:
+        parts.append(before)
+    if after:
+        parts.append(after)
+    nearby_str = " aur ".join(parts) if parts else None
+    if nearby_str:
+        return (
+            f"Maafi kijiye, {date} ko {time} baje ka slot available nahi hai. "
+            f"Nearby slots hain: {nearby_str} baje. Kaunsa theek rahega?"
+        )
+    return (
+        f"Maafi kijiye, {date} ko {time} baje ka slot available nahi hai. "
+        "Kripya koi aur samay batayein."
+    )
+
+
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
+    # fallback — not used for main flow anymore
     slots = ", ".join(suggestions)
     return (
-        f"Maafi chahta hoon, {date} ko {time} baje ka slot available nahi hai. "
-        f"In slots mein se chunein: {slots}. "
-        "Aap kaunsa samay prefer karenge?"
+        f"Maafi kijiye, {date} ko {time} baje ka slot available nahi hai. "
+        f"In slots mein se chunein: {slots} baje. Aap kaunsa samay prefer karenge?"
     )
 
 def _no_slots_on_date(date: str, is_today: bool = False) -> str:
     if is_today:
-        return (
-            "Aaj ke saare slots ya toh book ho chuke hain ya samay nikal chuka hai. "
-            "Kripya kal ya kisi aur din ki taareekh batayein."
-        )
-    return (
-        f"Maafi chahta hoon, {date} ko koi bhi slot available nahi hai. "
-        "Kripya koi aur taareekh batayein."
-    )
+        return "Aaj pure din mein koi slot available nahi hai. Kripya kisi aur din ki taareekh batayein."
+    return f"{date} ko pure din mein koi bhi slot available nahi hai. Kripya koi aur taareekh batayein."
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
     return (
@@ -127,6 +153,9 @@ class ConversationManager:
         if self.state == State.WAIT_NAME:
             return await self._handle_name(user_input)
         elif self.state == State.WAIT_DATETIME:
+            # Check if it's a slot availability question before normal date/time handling
+            if await self._is_slot_query(user_input):
+                return await self._handle_slot_query(user_input)
             return await self._handle_datetime(user_input)
         elif self.state == State.WAIT_DATE:
             return await self._handle_date_only(user_input)
@@ -135,6 +164,9 @@ class ConversationManager:
         elif self.state == State.WAIT_CONFIRM:
             return await self._handle_confirm(user_input)
         elif self.state == State.WAIT_SLOT_CHOICE:
+            # Also handle availability questions during slot choice
+            if await self._is_slot_query(user_input):
+                return await self._handle_slot_query(user_input)
             return await self._handle_slot_choice(user_input)
         elif self.state == State.DONE:
             return "Aapki appointment pehle se book ho chuki hai. Dhanyavad!"
@@ -242,8 +274,8 @@ class ConversationManager:
             self.state = State.WAIT_CONFIRM
             return _slot_available_confirm(self.patient_name, self.date, self.time)
         else:
-            slots_str = ", ".join(self.available_slots)
-            return f"Yeh samay available nahi hai. Kripya inme se chunein: {slots_str}"
+            before, after = _nearby_slots(time, self.available_slots)
+            return _slot_taken_nearby(self.date, time, before, after)
 
     async def _handle_confirm(self, text: str) -> str:
         import re as _re
@@ -319,15 +351,15 @@ class ConversationManager:
 
         matched = self._match_slot(self.time)
         if matched and self._is_past_slot(self.date, matched):
-            # Requested time is in the past — treat as unavailable
             matched = None
         if matched:
             self.time = matched
             self.state = State.WAIT_CONFIRM
             return _slot_available_confirm(self.patient_name, self.date, self.time)
         else:
+            before, after = _nearby_slots(self.time, slots)
             self.state = State.WAIT_SLOT_CHOICE
-            return _slot_taken(self.date, self.time, slots)
+            return _slot_taken_nearby(self.date, self.time, before, after)
 
     def _is_past_date(self, date: str) -> bool:
         import datetime as _dt
@@ -352,6 +384,56 @@ class ConversationManager:
         if padded in self.available_slots:
             return padded
         return None
+
+    # ------------------------------------------------------------------
+    # Slot availability queries (interactive calendar questions)
+    # ------------------------------------------------------------------
+
+    async def _is_slot_query(self, text: str) -> bool:
+        """Detect if the caller is asking about slot availability rather than booking."""
+        t = text.lower()
+        keywords = [
+            "kya slot", "koi slot", "available", "available hai", "khali",
+            "kab available", "slots hain", "slots hai", "slots bata",
+            "कोई slot", "कब available", "खाली", "available है",
+            "kab hai", "kab milega", "kab milegi", "when is", "kaun sa slot",
+        ]
+        return any(kw in t for kw in keywords)
+
+    async def _handle_slot_query(self, text: str) -> str:
+        """Answer a caller's question about available slots on a date."""
+        dt = await self._extract_datetime(text)
+        query_date = dt.get("date") or self.date
+        query_time = dt.get("time")
+
+        if not query_date:
+            return "Kripya taareekh batayein jiske baare mein jaanna chahte hain."
+
+        import re as _re
+        if not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", query_date):
+            return "Kripya sahi taareekh batayein."
+
+        all_slots = self.calendar.get_available_slots(query_date)
+        slots = [s for s in all_slots if not self._is_past_slot(query_date, s)]
+
+        if not slots:
+            import datetime as _dt
+            is_today = query_date == _dt.date.today().isoformat()
+            return _no_slots_on_date(query_date, is_today=is_today)
+
+        if query_time:
+            # Caller asked about a specific time on that date
+            if query_time in slots:
+                return f"{query_date} ko {query_time} baje ka slot available hai. Kya main yeh book karun?"
+            before, after = _nearby_slots(query_time, slots)
+            return _slot_taken_nearby(query_date, query_time, before, after)
+        else:
+            # Caller asked generally — give first and last available as a range
+            first, last = slots[0], slots[-1]
+            return (
+                f"{query_date} ko {first} baje se {last} baje tak slots available hain. "
+                "Aap kaunsa samay prefer karenge?"
+            )
 
     # ------------------------------------------------------------------
     # LLM extraction helpers (extraction only — no conversation logic)
