@@ -11,10 +11,8 @@ Latency per turn: ~2-3 s   (vs 10-12 s with <Record> approach)
 import asyncio
 import audioop
 import base64
-import io
 import json
 import time
-import wave
 
 from fastapi import WebSocket
 
@@ -25,18 +23,6 @@ SPEECH_RMS  = 180   # RMS above this = active speech
 SILENCE_END = 12    # consecutive silent 20ms frames -> end of utterance (~240ms)
 MIN_SPEECH  = 5     # minimum speech frames to process (~100ms)
 TTS_CHUNK   = 3200  # bytes per WebSocket write (~200ms of mulaw @ 8kHz)
-
-
-def _mulaw_to_wav(mulaw_bytes: bytes) -> bytes:
-    """Wrap raw mulaw 8kHz bytes in a WAV container for Whisper."""
-    pcm = audioop.ulaw2lin(mulaw_bytes, 2)
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(8000)
-        wf.writeframes(pcm)
-    return buf.getvalue()
 
 
 class StreamSession:
@@ -138,15 +124,15 @@ class StreamSession:
     async def _pipeline(self, mulaw_audio: bytes):
         self._processing = True
         try:
-            transcript = await self.speech.transcribe_wav_bytes(_mulaw_to_wav(mulaw_audio))
+            # Sarvam Saaras v2 codemix -- purpose-built for Hindi+English names
+            transcript = await self.speech.transcribe_mulaw(mulaw_audio)
             print(f"[Caller] {transcript}")
 
-            t = transcript.strip().lower()
-            if (not t or len(t) < 2
-                    or t.startswith("caller may")
-                    or t.startswith("caller can")
-                    or "appointment booking" in t):
-                return  # Whisper hallucination on near-silent audio -- discard
+            t = transcript.strip()
+            # Discard empty / single-char / punctuation-only transcripts
+            import re as _re
+            if not t or not _re.search(r'[a-zA-Z\u0900-\u097F]', t):
+                return
 
             from agent.conversation import State
             response = await self.conversation.process_turn(transcript)

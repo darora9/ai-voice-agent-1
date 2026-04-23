@@ -153,6 +153,14 @@ class ConversationManager:
         return _greeting_with_hours(self.patient_name)
 
     async def _handle_datetime(self, text: str) -> str:
+        # If caller is correcting their name ("mera naam X hai"), re-extract it
+        t_lower = text.lower()
+        if any(kw in t_lower for kw in ("my name is", "naam hai", "naam he", "mera naam", "main hoon", "i am")):
+            name = await self._extract_name(text)
+            if name:
+                self.patient_name = name
+                return _greeting_with_hours(self.patient_name)
+
         dt = await self._extract_datetime(text)
         date, time = dt.get("date"), dt.get("time")
 
