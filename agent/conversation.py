@@ -248,11 +248,16 @@ class ConversationManager:
     async def _handle_confirm(self, text: str) -> str:
         import re as _re
         text_lower = text.lower().strip()
+        # Matches both romanized AND Devanagari affirmatives/negatives
         affirm = bool(_re.search(
-            r"\b(haan|hnji|ha|yes|bilkul|theek|ok|okay|confirm|karo|krdo|kar\s*do|zaroor|sahi|done)\b",
+            r"(haan|hnji|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|zaroor|sahi|done"
+            r"|हाँ|हां|हा\b|हजी|हन्जी|बिल्कुल|ठीक|करो|ज़रूर|जरूर|सही|दीजिए|dijiye|kijiye|कीजिए)",
             text_lower
         ))
-        deny = bool(_re.search(r"\b(nahi|nahin|no|nope|cancel|mat|naa)\b", text_lower))
+        deny = bool(_re.search(
+            r"(nahi|nahin|no\b|nope|cancel|mat\b|naa\b|नहीं|नहि|नहीं|मत\b|ना\b)",
+            text_lower
+        ))
 
         if affirm and not deny:
             return await self._book_now()

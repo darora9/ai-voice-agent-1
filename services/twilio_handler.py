@@ -20,7 +20,7 @@ from fastapi import WebSocket
 # VAD tuning
 # ---------------------------------------------------------------------------
 SPEECH_RMS  = 180   # RMS above this = active speech
-SILENCE_END = 12    # consecutive silent 20ms frames -> end of utterance (~240ms)
+SILENCE_END = 16    # consecutive silent 20ms frames -> end of utterance (~320ms)
 MIN_SPEECH  = 5     # minimum speech frames to process (~100ms)
 TTS_CHUNK   = 3200  # bytes per WebSocket write (~200ms of mulaw @ 8kHz)
 
