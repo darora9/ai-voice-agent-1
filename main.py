@@ -71,8 +71,8 @@ def record_twiml(audio_url: str, action_url: str) -> str:
 <Response>
     <Play>{audio_url}</Play>
     <Record action="{action_url}" method="POST"
-            timeout="3" finishOnKey="#" playBeep="true"
-            maxLength="30" trim="trim-silence"/>
+            timeout="5" finishOnKey="#" playBeep="true"
+            maxLength="30"/>
 </Response>"""
 
 
@@ -116,6 +116,7 @@ async def handle_recording(request: Request):
     form = await request.form()
     call_sid = form.get("CallSid", "")
     recording_url = form.get("RecordingUrl", "")
+    retries_so_far = int(request.query_params.get("_retries", 0))
 
     base_url = get_base_url(request)
     action_url = f"{base_url}/handle-recording"
@@ -143,16 +144,52 @@ async def handle_recording(request: Request):
             content=record_twiml(f"{base_url}/audio/{filename}", action_url),
             media_type="application/xml")
 
+    # Minimum audio size check — WAV header alone is 44 bytes; < 8000 bytes ≈ < 0.5s at 8kHz
+    if len(wav_bytes) < 8000:
+        print(f"[Recording] Too short ({len(wav_bytes)} bytes), re-prompting")
+        retries = retries_so_far + 1
+        if retries >= 3:
+            filename = await tts_to_file(
+                "Koi jawab nahi mila. Baad mein call karein. Dhanyavad.", call_sid, "bye")
+            sessions.pop(call_sid, None)
+            return Response(
+                content=f"""<?xml version="1.0" encoding="UTF-8"?><Response><Play>{base_url}/audio/{filename}</Play><Pause length="2"/><Hangup/></Response>""",
+                media_type="application/xml")
+        filename = await tts_to_file(
+            "Kripya apna jawab phir se bolein.", call_sid, f"notrans{retries}")
+        action_with_retry = f"{action_url}?_retries={retries}"
+        return Response(
+            content=record_twiml(f"{base_url}/audio/{filename}", action_with_retry),
+            media_type="application/xml")
+
     # STT
     transcript = await speech_service.transcribe_wav_bytes(wav_bytes)
     print(f"[Caller] {transcript}")
 
-    # Guard: Whisper returns the prompt verbatim when audio is silent
-    if not transcript.strip() or "Caller may say" in transcript or len(transcript) < 2:
+    # Guard: Whisper returns prompt text verbatim when audio is silent/garbled
+    # Catches: "Caller may say...", "Caller may ask...", etc.
+    t_lower = transcript.strip().lower()
+    is_hallucination = (
+        not t_lower
+        or len(t_lower) < 2
+        or t_lower.startswith("caller may")
+        or t_lower.startswith("caller can")
+        or "appointment booking conversation" in t_lower
+    )
+    if is_hallucination:
+        retries = retries_so_far + 1
+        if retries >= 3:
+            filename = await tts_to_file(
+                "Koi jawab nahi mila. Baad mein call karein. Dhanyavad.", call_sid, "bye")
+            sessions.pop(call_sid, None)
+            return Response(
+                content=f"""<?xml version="1.0" encoding="UTF-8"?><Response><Play>{base_url}/audio/{filename}</Play><Pause length="2"/><Hangup/></Response>""",
+                media_type="application/xml")
         filename = await tts_to_file(
-            "Kripya apna jawab phir se bolein.", call_sid, "notrans")
+            "Kripya apna jawab phir se bolein.", call_sid, f"notrans{retries}")
+        action_with_retry = f"{action_url}?_retries={retries}"
         return Response(
-            content=record_twiml(f"{base_url}/audio/{filename}", action_url),
+            content=record_twiml(f"{base_url}/audio/{filename}", action_with_retry),
             media_type="application/xml")
 
     # LLM → agent response
