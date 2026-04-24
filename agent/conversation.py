@@ -221,6 +221,11 @@ class ConversationManager:
             return await self._check_slot()
         elif date:
             self.date = date
+            # Early Sunday check — no point asking for time
+            import datetime as _dt2
+            if _dt2.date.fromisoformat(date).weekday() == 6:
+                self.date = ""
+                return "इतवार को clinic बंद रहती है। कोई और दिन चुनें, Monday से Saturday।"
             self.state = State.WAIT_TIME
             return _ask_time(self.date)
         elif time:
@@ -234,12 +239,20 @@ class ConversationManager:
             )
 
     async def _handle_date_only(self, text: str) -> str:
+        # Detect "kaun se din" type availability queries
+        tl = text.lower()
+        if any(kw in tl for kw in ("कौन से दिन", "कौनसे दिन", "kaun se din", "kaunse din", "kon se din")):
+            return f"हम Monday से Saturday, {CLINIC_HOURS} तक available हैं। किस दिन آना चाहेंगे?"
         dt = await self._extract_datetime(text)
         date = dt.get("date")
         if not date:
             return "कृपया तारीख़ बताएं, जैसे 'कल', 'परसों', या '25 April'।"
         if self._is_past_date(date):
             return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
+        # Early Sunday check
+        import datetime as _dt2
+        if _dt2.date.fromisoformat(date).weekday() == 6:
+            return "इतवार को clinic बंद रहती है। कोई और दिन चुनें, Monday से Saturday।"
         self.date = date
         return await self._check_slot()
 
@@ -260,6 +273,23 @@ class ConversationManager:
                     time = f"{h + 12:02d}:{m:02d}"
             except Exception:
                 pass
+        # Out-of-hours check: clinic ends at 18:00, last slot is 17:30
+        # If requested time >= 18:00, steer toward last available slot immediately
+        try:
+            h, m = map(int, time.split(":"))
+            if h >= 18:
+                # Fetch slots now to offer the last one directly
+                if self.date:
+                    slots = self.calendar.get_available_slots(self.date)
+                    if slots and slots != "SUNDAY":
+                        from services.calendar_service import CalendarService as _CS
+                        last = slots[-1]
+                        self.time = last
+                        self.available_slots = slots
+                        self.state = State.WAIT_CONFIRM
+                        return f"Clinic {time} बजे बंद हो जाती है। आखिरी slot {last} बजे है — confirm करूँ?"
+        except Exception:
+            pass
         self.time = time
         return await self._check_slot()
 
@@ -291,8 +321,8 @@ class ConversationManager:
             if not self.available_slots:
                 self.state = State.WAIT_DATETIME
                 return "कृपया तारीख़ और समय बताएं।"
-            slots_str = ", ".join(self.available_slots)
-            return f"कृपया इनमें से एक समय चुनें: {slots_str} बजे"
+            first, last = self.available_slots[0], self.available_slots[-1]
+            return f"{first} से {last} बजे तक slots हैं। कौनसा समय ठीक रहेगा?"
 
         # PM flip: only when no explicit qualifier (subah/shaam/raat)
         # Hours 7-8 are never flipped (could be genuine morning)
