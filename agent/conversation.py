@@ -206,7 +206,7 @@ class ConversationManager:
             return "माफ़ी चाहते हैं, कृपया अपना पूरा नाम बताएं।"
         self.patient_name = name
         self.state = State.WAIT_NAME_CONFIRM
-        return f"{name} — क्या नाम सही है?"
+        return f"{name} — क्या मैं आपका नाम सही ले रही हूँ?"
 
     async def _handle_name_confirm(self, text: str) -> str:
         tl = text.lower().strip()
@@ -228,7 +228,7 @@ class ConversationManager:
         if corrected and corrected.lower() != self.patient_name.lower():
             self.patient_name = corrected
             self.state = State.WAIT_NAME_CONFIRM
-            return f"{corrected} — क्या नाम सही है?"
+            return f"{corrected} — क्या मैं आपका नाम सही ले रही हूँ?"
         # Treat anything else as confirmation
         self.state = State.WAIT_CITY
         return "आप किस शहर से हैं?"
@@ -348,6 +348,13 @@ class ConversationManager:
         return await self._check_slot()
 
     async def _handle_time_only(self, text: str) -> str:
+        # Detect clinic/doctor hours query
+        tl = text.lower()
+        if any(kw in tl for kw in (
+            "kab aayenge", "kab available", "kitne baje", "timing", "time kya",
+            "कितने बजे", "कब आएंगे", "कब available", "क्या समय", "टाइमिंग"
+        )):
+            return f"Clinic का समय {CLINIC_HOURS} है। आप किस समय आना चाहेंगे?"
         dt = await self._extract_datetime(text)
         time = dt.get("time")
         new_date = dt.get("date")
