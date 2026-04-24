@@ -480,9 +480,59 @@ class ConversationManager:
             return padded
         return None
 
-    # ------------------------------------------------------------------
-    # Slot availability queries (interactive calendar questions)
-    # ------------------------------------------------------------------
+    @staticmethod
+    def _preparse_date(text: str, today: 'object') -> 'str | None':
+        """
+        Pure-Python extraction for unambiguous date references.
+        Runs BEFORE the LLM and its result overrides LLM output.
+        Handles: aaj/kal/parso, 'DD Month', 'Month DD'.
+        Weekday names are left to the LLM (need next-occurrence logic).
+        """
+        import re as _re
+        import datetime as _dt
+        tl = text.lower()
+
+        # Relative day words (romanized + Devanagari + English)
+        if _re.search(r'\baaj\b|\btoday\b|आज', tl):
+            return today.isoformat()
+        # 'kal' — check not part of longer Latin word (e.g. 'calendar')
+        if _re.search(r'(?<![a-z])kal(?![a-z])|\btomorrow\b|कल', tl):
+            return (today + _dt.timedelta(days=1)).isoformat()
+        if _re.search(r'\bparso\b|\bparson\b|परसों|परसो\b', tl):
+            return (today + _dt.timedelta(days=2)).isoformat()
+
+        # Explicit 'DD Month' or 'Month DD'
+        months = {
+            'jan': 1, 'january': 1,
+            'feb': 2, 'february': 2,
+            'mar': 3, 'march': 3,
+            'apr': 4, 'april': 4, 'अप्रैल': 4,
+            'may': 5, 'मई': 5,
+            'jun': 6, 'june': 6,
+            'jul': 7, 'july': 7,
+            'aug': 8, 'august': 8,
+            'sep': 9, 'sept': 9, 'september': 9,
+            'oct': 10, 'october': 10,
+            'nov': 11, 'november': 11,
+            'dec': 12, 'december': 12,
+        }
+        for mn, mnum in months.items():
+            m = _re.search(
+                rf'(\d{{1,2}})\s+{_re.escape(mn)}\b|\b{_re.escape(mn)}\s+(\d{{1,2}})\b',
+                tl
+            )
+            if m:
+                day = int(m.group(1) or m.group(2))
+                year = today.year
+                try:
+                    candidate = _dt.date(year, mnum, day)
+                    if candidate < today:
+                        candidate = _dt.date(year + 1, mnum, day)
+                    return candidate.isoformat()
+                except ValueError:
+                    pass
+        return None
+
 
     async def _is_slot_query(self, text: str) -> bool:
         """Detect if the caller is asking about slot availability rather than booking."""
@@ -603,6 +653,54 @@ class ConversationManager:
             print(f"[LLM Error] _extract_name: {e}")
             return None
 
+    @staticmethod
+    def _preparse_date(text: str, today: object) -> 'str | None':
+        """
+        Pure-Python extraction for unambiguous date references.
+        Result overrides LLM output — more reliable for simple patterns.
+        Handles: aaj/kal/parso, 'DD Month', 'Month DD'.
+        Weekday names are left to the LLM (need calendar math).
+        """
+        import re as _re
+        import datetime as _dt
+        tl = text.lower()
+
+        # Relative day words
+        if _re.search(r'\baaj\b|\btoday\b|आज', tl):
+            return today.isoformat()
+        # 'kal' — avoid matching 'calendar', 'kalyan' etc.
+        if _re.search(r'(?<![a-z])kal(?![a-z])|\btomorrow\b|कल', tl):
+            return (today + _dt.timedelta(days=1)).isoformat()
+        if _re.search(r'\bparso\b|\bparson\b|परसों|परसो\b', tl):
+            return (today + _dt.timedelta(days=2)).isoformat()
+
+        # Explicit 'DD Month' or 'Month DD' in any language
+        months = {
+            'jan': 1, 'january': 1, 'feb': 2, 'february': 2,
+            'mar': 3, 'march': 3, 'apr': 4, 'april': 4, 'अप्रैल': 4,
+            'may': 5, 'मई': 5, 'jun': 6, 'june': 6,
+            'jul': 7, 'july': 7, 'aug': 8, 'august': 8,
+            'sep': 9, 'sept': 9, 'september': 9,
+            'oct': 10, 'october': 10, 'nov': 11, 'november': 11,
+            'dec': 12, 'december': 12,
+        }
+        for mn, mnum in months.items():
+            m = _re.search(
+                rf'(\d{{1,2}})\s+{_re.escape(mn)}\b|\b{_re.escape(mn)}\s+(\d{{1,2}})\b', tl
+            )
+            if m:
+                day = int(m.group(1) or m.group(2))
+                year = today.year
+                try:
+                    candidate = _dt.date(year, mnum, day)
+                    # If date is in the past this year, assume next year
+                    if candidate < today:
+                        candidate = _dt.date(year + 1, mnum, day)
+                    return candidate.isoformat()
+                except ValueError:
+                    pass
+        return None
+
     async def _extract_datetime(self, text: str) -> dict:
         import datetime as _dt
         IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
@@ -611,19 +709,25 @@ class ConversationManager:
         tomorrow = (today_obj + _dt.timedelta(days=1)).isoformat()
         day_after = (today_obj + _dt.timedelta(days=2)).isoformat()
 
-        # Pre-compute the next occurrence of every weekday (always future, never today)
-        weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        hindi_weekdays = ["Somwar", "Mangalwar", "Budhwar", "Guruwar", "Shukrawar", "Shaniwar", "Itwar"]
+        # Python pre-parse: aaj/kal/parso + DD-Month resolved without LLM
+        preparse_date = self._preparse_date(text, today_obj)
+
+        # Weekday map: English + romanized + Devanagari (Sarvam STT may output any)
+        weekday_en  = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        weekday_rom = ["Somwar", "Mangalwar", "Budhwar", "Guruwar", "Shukrawar", "Shaniwar", "Itvaar"]
+        weekday_dev = ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"]
         weekday_map: dict[str, str] = {}
-        for idx, (en, hi) in enumerate(zip(weekday_names, hindi_weekdays)):
+        for idx in range(7):
             days_ahead = (idx - today_obj.weekday()) % 7 or 7  # never 0 (=today)
             target = (today_obj + _dt.timedelta(days=days_ahead)).isoformat()
-            weekday_map[en] = target
-            weekday_map[hi] = target
+            weekday_map[weekday_en[idx]]  = target
+            weekday_map[weekday_rom[idx]] = target
+            weekday_map[weekday_dev[idx]] = target
+        weekday_map["इतवार"] = weekday_map["Sunday"]  # colloquial Sunday
 
         weekday_examples = "; ".join(
-            f"'next {en}' or '{en}' or '{hi}'->{weekday_map[en]}"
-            for en, hi in zip(weekday_names, hindi_weekdays)
+            f"'{weekday_en[i]}'='{weekday_rom[i]}'='{weekday_dev[i]}'->{weekday_map[weekday_en[i]]}"
+            for i in range(7)
         )
 
         try:
@@ -665,8 +769,11 @@ class ConversationManager:
             data = json.loads(response.choices[0].message.content)
             date = data.get("date") if data.get("date") not in (None, "null", "") else None
             time = data.get("time") if data.get("time") not in (None, "null", "") else None
+            # Python preparse always wins for date — deterministic beats LLM
+            if preparse_date:
+                date = preparse_date
             return {"date": date, "time": time}
         except Exception as e:
             print(f"[LLM Error] _extract_datetime: {e}")
-            return {"date": None, "time": None}
+            return {"date": preparse_date, "time": None}
 
