@@ -18,6 +18,7 @@ Flow:
 
 import os
 import json
+import asyncio
 from enum import Enum
 from groq import AsyncGroq
 
@@ -460,12 +461,60 @@ class ConversationManager:
         )
         if result.get("success"):
             self.state = State.DONE
-            return _booking_confirmed(self.patient_name, self.date, self.time)
+            confirmation = _booking_confirmed(self.patient_name, self.date, self.time)
+            # Fire-and-forget SMS — don't block or fail the call if SMS fails
+            asyncio.create_task(self._send_sms_confirmation())
+            return confirmation
         else:
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
             return _booking_failed()
+
+    async def _send_sms_confirmation(self) -> None:
+        """Send booking confirmation SMS to the caller via Twilio REST API."""
+        to_number = self.patient_phone
+        if not to_number:
+            return
+        account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+        auth_token  = os.getenv("TWILIO_AUTH_TOKEN")
+        from_number = os.getenv("TWILIO_PHONE_NUMBER")  # e.g. +1XXXXXXXXXX
+        if not all([account_sid, auth_token, from_number]):
+            print("[SMS] Skipped — TWILIO_ACCOUNT_SID / AUTH_TOKEN / PHONE_NUMBER not set")
+            return
+
+        import datetime as _dt
+        try:
+            d = _dt.date.fromisoformat(self.date)
+            day_names = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+            month_names = ["January","February","March","April","May","June",
+                           "July","August","September","October","November","December"]
+            human_date = f"{d.day} {month_names[d.month-1]} ({day_names[d.weekday()]})"
+        except Exception:
+            human_date = self.date
+
+        body = (
+            f"Dear {self.patient_name}, your appointment at {CLINIC_NAME} "
+            f"is confirmed for {human_date} at {self.time}. "
+            f"Doctor: {DOCTOR_NAME}. Thank you!"
+        )
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    url,
+                    auth=(account_sid, auth_token),
+                    data={"From": from_number, "To": to_number, "Body": body},
+                    timeout=10,
+                )
+            if resp.status_code == 201:
+                print(f"[SMS] Sent to {to_number}")
+            else:
+                print(f"[SMS] Failed ({resp.status_code}): {resp.text[:200]}")
+        except Exception as e:
+            print(f"[SMS] Error: {e}")
 
     # ------------------------------------------------------------------
     # Availability check (shared)
