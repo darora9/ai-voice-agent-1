@@ -20,7 +20,7 @@ from fastapi import WebSocket
 # VAD tuning
 # ---------------------------------------------------------------------------
 SPEECH_RMS  = 180   # RMS above this = active speech
-SILENCE_END = 10    # consecutive silent 20ms frames -> end of utterance (~200ms)
+SILENCE_END = 6     # consecutive silent 20ms frames -> end of utterance (~120ms)
 MIN_SPEECH  = 5     # minimum speech frames to process (~100ms)
 TTS_CHUNK   = 1600  # bytes per WebSocket write (~200ms of mulaw @ 8kHz)
 
@@ -174,7 +174,7 @@ class StreamSession:
         mulaw = audioop.lin2ulaw(pcm, 2)
         duration = len(mulaw) / 8000.0
         # Mute inbound for the full TTS duration + 300ms buffer
-        self._muted_until = time.monotonic() + duration + 0.3
+        self._muted_until = time.monotonic() + duration + 0.15
 
         for i in range(0, len(mulaw), TTS_CHUNK):
             try:
