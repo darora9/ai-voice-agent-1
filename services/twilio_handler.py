@@ -77,6 +77,9 @@ class StreamSession:
             self.stream_sid = msg["start"]["streamSid"]
             self.conversation = ConversationManager()
             print(f"[Call] Stream started: {self.call_sid}")
+            # Pre-mute for 6s so connection tone / ring bleed never triggers VAD
+            # _speak() will extend _muted_until once the actual greeting duration is known
+            self._muted_until = time.monotonic() + 6.0
             asyncio.create_task(self._speak(self.conversation.get_greeting()))
 
         elif event == "media":
@@ -170,9 +173,12 @@ class StreamSession:
         self._muted_until = time.monotonic() + duration + 0.3
 
         for i in range(0, len(mulaw), TTS_CHUNK):
-            await self._ws.send_text(json.dumps({
-                "event": "media",
-                "streamSid": self.stream_sid,
-                "media": {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
-            }))
+            try:
+                await self._ws.send_text(json.dumps({
+                    "event": "media",
+                    "streamSid": self.stream_sid,
+                    "media": {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
+                }))
+            except Exception:
+                return  # socket already closed (e.g. caller hung up mid-greeting)
         # No sleep needed — _muted_until blocks VAD for the full playback duration
