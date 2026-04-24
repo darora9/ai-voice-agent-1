@@ -75,8 +75,9 @@ class StreamSession:
             from agent.conversation import ConversationManager
             self.call_sid   = msg["start"]["callSid"]
             self.stream_sid = msg["start"]["streamSid"]
-            self.conversation = ConversationManager()
-            print(f"[Call] Stream started: {self.call_sid}")
+            caller_number = msg["start"].get("customParameters", {}).get("callerNumber", "")
+            self.conversation = ConversationManager(caller_phone=caller_number)
+            print(f"[Call] Stream started: {self.call_sid} from {caller_number}")
             # Pre-mute for 6s so connection tone / ring bleed never triggers VAD
             # _speak() will extend _muted_until once the actual greeting duration is known
             self._muted_until = time.monotonic() + 6.0

@@ -139,7 +139,7 @@ GREETING = (
 # ---------------------------------------------------------------------------
 
 class ConversationManager:
-    def __init__(self):
+    def __init__(self, caller_phone: str = ""):
         self.client = AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
         self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         self.calendar = CalendarService()
@@ -149,6 +149,7 @@ class ConversationManager:
         # Collected data
         self.patient_name: str = ""
         self.patient_city: str = ""
+        self.patient_phone: str = caller_phone  # from Twilio 'From' field
         self.date: str = ""         # YYYY-MM-DD
         self.time: str = ""         # HH:MM
         self.available_slots: list = []
@@ -440,7 +441,7 @@ class ConversationManager:
     async def _book_now(self) -> str:
         result = self.calendar.book_appointment(
             patient_name=self.patient_name,
-            patient_phone="",
+            patient_phone=self.patient_phone,
             date_str=self.date,
             time_str=self.time,
             city=self.patient_city,

@@ -44,12 +44,16 @@ async def health():
 async def incoming_call(request: Request):
     host = request.headers.get("host", "localhost:8000")
     stream_url = f"wss://{host}/stream"
-    print(f"[Call] Incoming -> stream at {stream_url}")
+    form = await request.form()
+    caller_number = form.get("From", "")
+    print(f"[Call] Incoming from {caller_number} -> stream at {stream_url}")
 
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Connect>
-        <Stream url="{stream_url}"/>
+        <Stream url="{stream_url}">
+            <Parameter name="callerNumber" value="{caller_number}"/>
+        </Stream>
     </Connect>
     <Hangup/>
 </Response>"""
