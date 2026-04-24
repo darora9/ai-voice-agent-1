@@ -26,13 +26,14 @@ from services.calendar_service import CalendarService
 
 
 class State(Enum):
-    WAIT_NAME        = "wait_name"
-    WAIT_DATETIME    = "wait_datetime"    # need both date and time
-    WAIT_DATE        = "wait_date"        # have time, need date
-    WAIT_TIME        = "wait_time"        # have date, need time
-    WAIT_CONFIRM     = "wait_confirm"     # slot available, awaiting yes/no
-    WAIT_SLOT_CHOICE = "wait_slot_choice" # slot taken, picking alternative
-    DONE             = "done"
+    WAIT_NAME         = "wait_name"
+    WAIT_NAME_CONFIRM = "wait_name_confirm" # read name back, await yes/no
+    WAIT_DATETIME     = "wait_datetime"    # need both date and time
+    WAIT_DATE         = "wait_date"        # have time, need date
+    WAIT_TIME         = "wait_time"        # have date, need time
+    WAIT_CONFIRM      = "wait_confirm"     # slot available, awaiting yes/no
+    WAIT_SLOT_CHOICE  = "wait_slot_choice" # slot taken, picking alternative
+    DONE              = "done"
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +161,8 @@ class ConversationManager:
 
         if self.state == State.WAIT_NAME:
             return await self._handle_name(user_input)
+        elif self.state == State.WAIT_NAME_CONFIRM:
+            return await self._handle_name_confirm(user_input)
         elif self.state == State.WAIT_DATETIME:
             # Check if it's a slot availability question before normal date/time handling
             if await self._is_slot_query(user_input):
@@ -195,6 +198,29 @@ class ConversationManager:
         if not name:
             return "माफ़ी चाहते हैं, कृपया अपना पूरा नाम बताएं।"
         self.patient_name = name
+        self.state = State.WAIT_NAME_CONFIRM
+        return f"{name} — क्या नाम सही है?"
+
+    async def _handle_name_confirm(self, text: str) -> str:
+        tl = text.lower().strip()
+        # Negation — re-ask for name
+        _deny = ("no", "nahi", "nahin", "नहीं", "nahi", "galat", "गलत", "wrong", "nope")
+        if any(d in tl for d in _deny):
+            self.patient_name = ""
+            self.state = State.WAIT_NAME
+            return "कृपया अपना सही नाम बताएं।"
+        # Affirmation or anything else (repeating name, etc.) — accept
+        _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi", "सही", "correct", "theek", "ठीक")
+        if any(a in tl for a in _affirm):
+            self.state = State.WAIT_DATETIME
+            return _greeting_with_hours(self.patient_name)
+        # Caller may have corrected the name directly (e.g. "Gaganjot")
+        corrected = await self._extract_name(text)
+        if corrected and corrected.lower() != self.patient_name.lower():
+            self.patient_name = corrected
+            self.state = State.WAIT_NAME_CONFIRM
+            return f"{corrected} — क्या नाम सही है?"
+        # Treat anything else as confirmation
         self.state = State.WAIT_DATETIME
         return _greeting_with_hours(self.patient_name)
 
