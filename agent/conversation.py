@@ -244,12 +244,16 @@ class ConversationManager:
     async def _handle_time_only(self, text: str) -> str:
         dt = await self._extract_datetime(text)
         time = dt.get("time")
+        new_date = dt.get("date")
         if not time:
             return "कृपया समय बताएं, जैसे 'सुबह 10 बजे' या 'शाम 3 बजे'।"
-        # Apply PM flip: hour < 9 outside clinic hours means PM was intended
+        # If LLM also found a date (e.g. 'कल सुबह 8 बजे' said while in WAIT_TIME), use it
+        if new_date and not self._is_past_date(new_date):
+            self.date = new_date
+        # PM flip: only for hours 1-6 (1-8 are pre-clinic; 7-8 are morning, never flip)
         try:
             h, m = map(int, time.split(":"))
-            if h < 9:
+            if h < 7:
                 time = f"{h + 12:02d}:{m:02d}"
         except Exception:
             pass
@@ -286,11 +290,12 @@ class ConversationManager:
             slots_str = ", ".join(self.available_slots)
             return f"कृपया इनमें से एक समय चुनें: {slots_str} बजे"
 
-        # If LLM returned an AM time (hour < 9) that's outside clinic hours,
+        # If LLM returned an AM time (hour 1-6) that's outside clinic hours,
         # flip it to PM — e.g. "02:00" from "2 bje" → "14:00"
+        # Hours 7-8 are never flipped (could be genuine morning)
         try:
             h, m = map(int, time.split(":"))
-            if h < 9:
+            if h < 7:
                 time = f"{h + 12:02d}:{m:02d}"
         except Exception:
             pass
@@ -507,10 +512,10 @@ class ConversationManager:
             return _no_slots_on_date(query_date, is_today=is_today)
 
         if query_time:
-            # Apply PM flip same as other handlers
+            # Apply PM flip same as other handlers (only hours 1-6)
             try:
                 h, m = map(int, query_time.split(":"))
-                if h < 9:
+                if h < 7:
                     query_time = f"{h + 12:02d}:{m:02d}"
             except Exception:
                 pass
