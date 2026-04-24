@@ -28,6 +28,7 @@ from services.calendar_service import CalendarService
 class State(Enum):
     WAIT_NAME         = "wait_name"
     WAIT_NAME_CONFIRM = "wait_name_confirm" # read name back, await yes/no
+    WAIT_CITY         = "wait_city"         # ask which city patient is from
     WAIT_DATETIME     = "wait_datetime"    # need both date and time
     WAIT_DATE         = "wait_date"        # have time, need date
     WAIT_TIME         = "wait_time"        # have date, need time
@@ -147,6 +148,7 @@ class ConversationManager:
 
         # Collected data
         self.patient_name: str = ""
+        self.patient_city: str = ""
         self.date: str = ""         # YYYY-MM-DD
         self.time: str = ""         # HH:MM
         self.available_slots: list = []
@@ -163,6 +165,8 @@ class ConversationManager:
             return await self._handle_name(user_input)
         elif self.state == State.WAIT_NAME_CONFIRM:
             return await self._handle_name_confirm(user_input)
+        elif self.state == State.WAIT_CITY:
+            return await self._handle_city(user_input)
         elif self.state == State.WAIT_DATETIME:
             # Check if it's a slot availability question before normal date/time handling
             if await self._is_slot_query(user_input):
@@ -214,8 +218,8 @@ class ConversationManager:
         _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi", "सही", "correct", "theek", "ठीक",
                    "ਹਾਂ", "ਹਾਂਜੀ", "ਜੀ", "ਸਹੀ", "ਠੀਕ", "ਬਿਲਕੁਲ")
         if any(a in tl for a in _affirm):
-            self.state = State.WAIT_DATETIME
-            return _greeting_with_hours(self.patient_name)
+            self.state = State.WAIT_CITY
+            return "आप किस शहर से हैं?"
         # Caller may have corrected the name directly (e.g. "Gaganjot")
         corrected = await self._extract_name(text)
         if corrected and corrected.lower() != self.patient_name.lower():
@@ -223,8 +227,44 @@ class ConversationManager:
             self.state = State.WAIT_NAME_CONFIRM
             return f"{corrected} — क्या नाम सही है?"
         # Treat anything else as confirmation
+        self.state = State.WAIT_CITY
+        return "आप किस शहर से हैं?"
+
+    async def _handle_city(self, text: str) -> str:
+        city = await self._extract_city(text)
+        if not city:
+            # Accept whatever they said as city if LLM couldn't extract — don't block flow
+            city = text.strip().title()
+        self.patient_city = city
         self.state = State.WAIT_DATETIME
         return _greeting_with_hours(self.patient_name)
+
+    async def _extract_city(self, text: str) -> str:
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Extract the city name from the text. "
+                            "Input may be Punjabi (Gurmukhi), Hindi (Devanagari), English, or romanized. "
+                            "Common Punjabi cities: Ludhiana, Amritsar, Jalandhar, Patiala, Bathinda, Mohali, Phagwara, Hoshiarpur, Gurdaspur, Pathankot, Firozpur. "
+                            "Return the city name in proper English (e.g. 'Ludhiana', 'Amritsar', 'Delhi'). "
+                            'Return only JSON: {"city": "CityName"} or {"city": null} if no city found.'
+                        ),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+                max_tokens=20,
+            )
+            data = json.loads(response.choices[0].message.content)
+            return data.get("city") or None
+        except Exception as e:
+            print(f"[LLM Error] _extract_city: {e}")
+            return None
 
     async def _handle_datetime(self, text: str) -> str:
         # If caller is correcting their name, re-extract it
@@ -403,6 +443,7 @@ class ConversationManager:
             patient_phone="",
             date_str=self.date,
             time_str=self.time,
+            city=self.patient_city,
         )
         if result.get("success"):
             self.state = State.DONE

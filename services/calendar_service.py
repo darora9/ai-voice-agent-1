@@ -34,6 +34,7 @@ class CalendarService:
         date_str: str,   # "YYYY-MM-DD"
         time_str: str,   # "HH:MM" 24h
         reason: Optional[str] = None,
+        city: Optional[str] = None,
     ) -> dict:
         """
         Create a calendar event for the appointment.
@@ -50,6 +51,8 @@ class CalendarService:
                 f"Patient: {patient_name}",
                 f"Phone: {patient_phone}",
             ]
+            if city:
+                description_parts.append(f"City: {city}")
             if reason:
                 description_parts.append(f"Reason: {reason}")
 
