@@ -614,8 +614,9 @@ class ConversationManager:
                         "content": (
                             f"Today is {today} (YYYY-MM-DD). "
                             "Extract date and/or time from Hindi/English text. "
-                            "ALWAYS return actual calendar dates in YYYY-MM-DD format, never placeholder words. "
-                            'Return JSON: {"date": "YYYY-MM-DD", "time": "HH:MM"} — use null if not present. '
+                            "Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. "
+                            "Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. "
+                            'Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. '
                             "The input may be Hindi (Devanagari), English, or a mix. "
                             "Relative dates: "
                             "'aaj'/'आज'=today, 'kal'/'कल'=tomorrow, 'parso'/'परसों'=day after tomorrow, "
