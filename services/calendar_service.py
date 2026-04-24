@@ -13,6 +13,10 @@ from googleapiclient.errors import HttpError
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
+# In-memory registry: event_id -> {phone, name, date, time}
+# Populated on booking, used by cancellation monitor to look up who to SMS
+_event_registry: dict[str, dict] = {}
+
 
 class CalendarService:
     def __init__(self):
@@ -83,6 +87,13 @@ class CalendarService:
                 .execute()
             )
             print(f"[Calendar] Event created: {created.get('htmlLink')}")
+            # Register for cancellation monitoring
+            _event_registry[created["id"]] = {
+                "phone": patient_phone,
+                "name":  patient_name,
+                "date":  date_str,
+                "time":  time_str,
+            }
             return {"success": True, "event": created}
 
         except HttpError as e:
@@ -140,3 +151,84 @@ class CalendarService:
         except Exception as e:
             print(f"[Calendar Error] {e}")
             return None  # None = error, [] = genuinely no slots
+
+    def get_next_available_slot(self) -> dict | None:
+        """Return {date, time} of the earliest available slot from today, or None."""
+        import datetime as _dt
+        IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        today = _dt.datetime.now(tz=IST).date()
+        for day_offset in range(30):  # look up to 30 days ahead
+            check_date = today + _dt.timedelta(days=day_offset)
+            if check_date.weekday() == 6:  # skip Sunday
+                continue
+            slots = self.get_available_slots(check_date.isoformat())
+            if not slots or slots == "SUNDAY":
+                continue
+            # Filter past slots if today
+            from datetime import datetime as _dtt
+            now_ist = _dtt.now(tz=IST)
+            for s in slots:
+                slot_dt = _dtt.strptime(
+                    f"{check_date.isoformat()} {s}", "%Y-%m-%d %H:%M"
+                ).replace(tzinfo=IST)
+                if slot_dt > now_ist:
+                    return {"date": check_date.isoformat(), "time": s}
+        return None
+
+    def get_cancelled_since(self, sync_token: str | None) -> tuple[list[dict], str]:
+        """
+        Incremental sync using Google's syncToken.
+        Returns (cancelled_events, new_sync_token).
+        Each cancelled event is a dict from _event_registry.
+        First call (sync_token=None) bootstraps the token without processing history.
+        """
+        try:
+            params = {"calendarId": self.calendar_id, "singleEvents": True}
+            if sync_token:
+                params["syncToken"] = sync_token
+            else:
+                # Bootstrap: full sync just to get a fresh token, ignore results
+                import datetime as _dt
+                IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+                params["updatedMin"] = _dt.datetime.now(tz=IST).strftime("%Y-%m-%dT%H:%M:%S+05:30")
+
+            cancelled = []
+            page_token = None
+            new_sync_token = None
+
+            while True:
+                if page_token:
+                    params["pageToken"] = page_token
+                result = self.service.events().list(**params).execute()
+
+                if not sync_token:
+                    # Bootstrap run — just capture the token, skip processing
+                    new_sync_token = result.get("nextSyncToken")
+                    if not result.get("nextPageToken"):
+                        break
+                    page_token = result["nextPageToken"]
+                    continue
+
+                for ev in result.get("items", []):
+                    if ev.get("status") == "cancelled":
+                        ev_id = ev["id"]
+                        if ev_id in _event_registry:
+                            cancelled.append({"event_id": ev_id, **_event_registry[ev_id]})
+                            del _event_registry[ev_id]
+
+                new_sync_token = result.get("nextSyncToken")
+                page_token = result.get("nextPageToken")
+                if not page_token:
+                    break
+
+            return cancelled, new_sync_token
+
+        except HttpError as e:
+            if e.resp.status == 410:  # syncToken expired — resync
+                print("[Calendar] syncToken expired, resyncing")
+                return [], None
+            print(f"[Calendar Error] get_cancelled_since: {e}")
+            return [], sync_token
+        except Exception as e:
+            print(f"[Calendar Error] get_cancelled_since: {e}")
+            return [], sync_token

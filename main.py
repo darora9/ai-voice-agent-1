@@ -12,6 +12,7 @@ Flow:
 """
 
 import os
+import asyncio
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import Response
 import uvicorn
@@ -19,6 +20,8 @@ from dotenv import load_dotenv
 
 from services.speech import SpeechService
 from services.twilio_handler import StreamSession
+from services.calendar_service import CalendarService
+from services.cancellation_monitor import run_monitor
 
 load_dotenv()
 
@@ -33,6 +36,13 @@ if _b64:
 
 app = FastAPI(title="AI Voice Agent")
 speech_service = SpeechService()
+_calendar_service = CalendarService()
+
+
+@app.on_event("startup")
+async def _startup():
+    asyncio.create_task(run_monitor(_calendar_service))
+    print("[Startup] Cancellation monitor started")
 
 
 @app.get("/health")
