@@ -42,21 +42,18 @@ class State(Enum):
 def _greeting_with_hours(name: str) -> str:
     return (
         f"{name} जी, नमस्ते! "
-        f"हमारे clinic के काम के घंटे हैं: {CLINIC_HOURS}. "
-        "आप कौनसे दिन और किस समय appointment लेना चाहेंगे?"
+        f"Clinic का समय: {CLINIC_HOURS}. "
+        "आप किस दिन और समय appointment लेना चाहेंगे?"
     )
 
 def _ask_time(date: str) -> str:
-    return f"{date} ठीक है। आप किस समय आना चाहेंगे? (सुबह 9 बजे से शाम 6 बजे के बीच)"
+    return f"{date} ठीक है। किस समय आना चाहेंगे?"
 
 def _ask_date(time: str) -> str:
-    return f"{time} का समय ठीक है। आप कौनसे दिन आना चाहेंगे?"
+    return f"{time} ठीक है। कौनसा दिन आना चाहेंगे?"
 
 def _slot_available_confirm(name: str, date: str, time: str) -> str:
-    return (
-        f"{name} जी, {date} को {time} बजे का slot available है। "
-        "क्या मैं यह appointment confirm करूँ?"
-    )
+    return f"{name} जी, {date} को {time} बजे slot available है। Confirm करूँ?"
 
 def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | None]:
     """Return (slot_before, slot_after) closest to requested time from available list."""
@@ -94,14 +91,8 @@ def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | No
         parts.append(after)
     nearby_str = " और ".join(parts) if parts else None
     if nearby_str:
-        return (
-            f"माफ़ी चाहते हैं, {date} को {time} बजे का slot available नहीं है। "
-            f"Nearby slots हैं: {nearby_str} बजे। कौनसा ठीक रहेगा?"
-        )
-    return (
-        f"माफ़ी चाहते हैं, {date} को {time} बजे का slot available नहीं है। "
-        "कृपया कोई और समय बताएं।"
-    )
+        return f"{time} बजे slot नहीं है। पास में: {nearby_str} बजे। कौनसा ठीक रहेगा?"
+    return f"{time} बजे slot नहीं है। कोई और समय बताएं।"
 
 
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
@@ -114,8 +105,8 @@ def _slot_taken(date: str, time: str, suggestions: list) -> str:
 
 def _no_slots_on_date(date: str, is_today: bool = False) -> str:
     if is_today:
-        return "आज पूरे दिन में कोई slot available नहीं है। कृपया किसी और दिन की तारीख़ बताएं।"
-    return f"{date} को पूरे दिन में कोई भी slot available नहीं है। कृपया कोई और तारीख़ बताएं।"
+        return "आज कोई slot नहीं है। कोई और दिन बताएं।"
+    return f"{date} को कोई slot नहीं है। कोई और तारीख़ बताएं।"
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
     import datetime as _dt
@@ -128,22 +119,16 @@ def _booking_confirmed(name: str, date: str, time: str) -> str:
     except Exception:
         human_date = date
     return (
-        f"बिल्कुल! {name} जी, आपकी appointment confirm हो गई है। "
-        f"तारीख़: {human_date}, समय: {time} बजे। "
-        f"आपको {CLINIC_NAME} में मिलेंगे। धन्यवाद!"
+        f"बिल्कुल! {name} जी, {human_date} को {time} बजे appointment confirm हो गई। धन्यवाद!"
     )
 
 def _booking_failed() -> str:
-    return (
-        "माफ़ी चाहते हैं, booking में कुछ समस्या आई। "
-        "कृपया दोबारा तारीख़ और समय बताएं।"
-    )
+    return "माफ़ी चाहते हैं, booking नहीं हो पाई। दोबारा तारीख़ और समय बताएं।"
 
 
 GREETING = (
     f"नमस्ते! {CLINIC_NAME} में आपका स्वागत है। "
-    "मैं आपकी appointment book करने में मदद करूँगा। "
-    "कृपया अपना पूरा नाम बताएं।"
+    "अपना नाम बताएं।"
 )
 
 
