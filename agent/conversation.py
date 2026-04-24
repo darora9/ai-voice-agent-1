@@ -75,10 +75,10 @@ def _has_time_qualifier(text: str) -> bool:
     When True, the LLM already resolved the correct hour — skip our PM flip."""
     t = text.lower()
     qualifiers = (
-        "subah", "सुबह", "morning",
-        "dopahar", "दोपहर", "duphar", "noon",
-        "shaam", "शाम", "sham", "evening",
-        "raat", "रात", "night",
+        "subah", "सुबह", "morning", "ਸਵੇਰੇ", "ਸਵੇਰ",
+        "dopahar", "दोपहर", "duphar", "noon", "ਦੁਪਹਿਰ",
+        "shaam", "शाम", "sham", "evening", "ਸ਼ਾਮ",
+        "raat", "रात", "night", "ਰਾਤ",
         "am", "pm",
     )
     return any(q in t for q in qualifiers)
@@ -204,13 +204,15 @@ class ConversationManager:
     async def _handle_name_confirm(self, text: str) -> str:
         tl = text.lower().strip()
         # Negation — re-ask for name
-        _deny = ("no", "nahi", "nahin", "नहीं", "nahi", "galat", "गलत", "wrong", "nope")
+        _deny = ("no", "nahi", "nahin", "नहीं", "nahi", "galat", "गलत", "wrong", "nope",
+                 "ਨਹੀਂ", "ਗਲਤ", "ਨਹੀ")
         if any(d in tl for d in _deny):
             self.patient_name = ""
             self.state = State.WAIT_NAME
             return "कृपया अपना सही नाम बताएं।"
         # Affirmation or anything else (repeating name, etc.) — accept
-        _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi", "सही", "correct", "theek", "ठीक")
+        _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi", "सही", "correct", "theek", "ठीक",
+                   "ਹਾਂ", "ਹਾਂਜੀ", "ਜੀ", "ਸਹੀ", "ਠੀਕ", "ਬਿਲਕੁਲ")
         if any(a in tl for a in _affirm):
             self.state = State.WAIT_DATETIME
             return _greeting_with_hours(self.patient_name)
@@ -267,8 +269,9 @@ class ConversationManager:
     async def _handle_date_only(self, text: str) -> str:
         # Detect "kaun se din" type availability queries
         tl = text.lower()
-        if any(kw in tl for kw in ("कौन से दिन", "कौनसे दिन", "kaun se din", "kaunse din", "kon se din")):
-            return f"हम Monday से Saturday, {CLINIC_HOURS} तक available हैं। किस दिन آना चाहेंगे?"
+        if any(kw in tl for kw in ("कौन से दिन", "कौनसे दिन", "kaun se din", "kaunse din", "kon se din",
+                                    "ਕਿਹੜੇ ਦਿਨ", "ਕਿਹੜਾ ਦਿਨ", "ਕਿਹੜੇ ਦਿਨਾਂ")):
+            return f"हम Monday से Saturday, {CLINIC_HOURS} तक available हैं। किस दिन आना चाहेंगे?"
         dt = await self._extract_datetime(text)
         date = dt.get("date")
         if not date:
@@ -375,11 +378,12 @@ class ConversationManager:
         # Matches both romanized AND Devanagari affirmatives/negatives
         affirm = bool(_re.search(
             r"(haan|hnji|ji\b|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|zaroor|sahi|done"
-            r"|हाँ|हां|हा\b|जी|हजी|हन्जी|बिल्कुल|ठीक|करो|ज़रूर|जरूर|सही|दीजिए|dijiye|kijiye|कीजिए)",
+            r"|हाँ|हां|हा\b|जी|हजी|हन्जी|बिल्कुल|ठीक|करो|ज़रूर|जरूर|सही|दीजिए|dijiye|kijiye|कीजिए"
+            r"|ਹਾਂ|ਹਾਂਜੀ|ਜੀ|ਸਹੀ|ਠੀਕ|ਬਿਲਕੁਲ|ਕਰੋ|ਜ਼ਰੂਰ)",
             text_lower
         ))
         deny = bool(_re.search(
-            r"(nahi|nahin|no\b|nope|cancel|mat\b|naa\b|नहीं|नहि|नहीं|मत\b|ना\b)",
+            r"(nahi|nahin|no\b|nope|cancel|mat\b|naa\b|नहीं|नहि|नहीं|मत\b|ना\b|ਨਹੀਂ|ਨਹੀ|ਨਾ\b)",
             text_lower
         ))
 
@@ -533,13 +537,13 @@ class ConversationManager:
         import datetime as _dt
         tl = text.lower()
 
-        # Relative day words (romanized + Devanagari + English)
-        if _re.search(r'\baaj\b|\btoday\b|आज', tl):
+        # Relative day words (romanized + Devanagari + Gurmukhi + English)
+        if _re.search(r'\baaj\b|\btoday\b|आज|ਅੱਜ', tl):
             return today.isoformat()
         # 'kal' — check not part of longer Latin word (e.g. 'calendar')
-        if _re.search(r'(?<![a-z])kal(?![a-z])|\btomorrow\b|कल', tl):
+        if _re.search(r'(?<![a-z])kal(?![a-z])|\btomorrow\b|कल|ਕੱਲ੍ਹ|ਕੱਲ', tl):
             return (today + _dt.timedelta(days=1)).isoformat()
-        if _re.search(r'\bparso\b|\bparson\b|परसों|परसो\b', tl):
+        if _re.search(r'\bparso\b|\bparson\b|परसों|परसो\b|ਪਰਸੋਂ|ਪਰਸੋ', tl):
             return (today + _dt.timedelta(days=2)).isoformat()
 
         # Explicit 'DD Month' or 'Month DD'
@@ -676,9 +680,9 @@ class ConversationManager:
                         "role": "system",
                         "content": (
                             "Extract the person's name from the text. "
-                            "The input may be Hindi (Devanagari script), English, or a mix of both. "
+                            "The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. "
                             "It can be a single name or full name — both are valid. "
-                            "Capitalize it properly using Latin script (e.g. 'Krishna', 'Priya', 'Rahul'). "
+                            "Capitalize it properly using Latin script (e.g. 'Gaganjot', 'Bhagwanjot', 'Priya'). "
                             'Return only JSON: {"name": "Name"} or {"name": null} if no name is present.'
                         ),
                     },
@@ -753,10 +757,11 @@ class ConversationManager:
         # Python pre-parse: aaj/kal/parso + DD-Month resolved without LLM
         preparse_date = self._preparse_date(text, today_obj)
 
-        # Weekday map: English + romanized + Devanagari (Sarvam STT may output any)
+        # Weekday map: English + romanized + Devanagari + Gurmukhi (Sarvam STT may output any)
         weekday_en  = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         weekday_rom = ["Somwar", "Mangalwar", "Budhwar", "Guruwar", "Shukrawar", "Shaniwar", "Itvaar"]
         weekday_dev = ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"]
+        weekday_gur = ["ਸੋਮਵਾਰ", "ਮੰਗਲਵਾਰ", "ਬੁੱਧਵਾਰ", "ਵੀਰਵਾਰ", "ਸ਼ੁੱਕਰਵਾਰ", "ਸ਼ਨੀਵਾਰ", "ਐਤਵਾਰ"]
         weekday_map: dict[str, str] = {}
         for idx in range(7):
             days_ahead = (idx - today_obj.weekday()) % 7 or 7  # never 0 (=today)
@@ -764,10 +769,12 @@ class ConversationManager:
             weekday_map[weekday_en[idx]]  = target
             weekday_map[weekday_rom[idx]] = target
             weekday_map[weekday_dev[idx]] = target
-        weekday_map["इतवार"] = weekday_map["Sunday"]  # colloquial Sunday
+            weekday_map[weekday_gur[idx]] = target
+        weekday_map["इतवार"] = weekday_map["Sunday"]  # colloquial Hindi Sunday
+        weekday_map["ਇਤਵਾਰ"] = weekday_map["Sunday"]  # colloquial Punjabi Sunday
 
         weekday_examples = "; ".join(
-            f"'{weekday_en[i]}'='{weekday_rom[i]}'='{weekday_dev[i]}'->{weekday_map[weekday_en[i]]}"
+            f"'{weekday_en[i]}'='{weekday_rom[i]}'='{weekday_dev[i]}'='{weekday_gur[i]}'->{weekday_map[weekday_en[i]]}"
             for i in range(7)
         )
 
@@ -779,18 +786,18 @@ class ConversationManager:
                         "role": "system",
                         "content": (
                             f"Today is {today} (YYYY-MM-DD). "
-                            "Extract date and/or time from Hindi/English text. "
+                            "Extract date and/or time from Hindi/Punjabi/English text. "
                             "Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. "
                             "Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. "
                             'Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. '
-                            "The input may be Hindi (Devanagari), English, or a mix. "
+                            "The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. "
                             "Relative dates: "
-                            "'aaj'/'आज'=today, 'kal'/'कल'=tomorrow, 'parso'/'परसों'=day after tomorrow, "
-                            "'agle'/'अगले'/'agli'/'अगली' X=next X. "
+                            "'aaj'/'आज'/'ਅੱਜ'=today, 'kal'/'कल'/'ਕੱਲ੍ਹ'=tomorrow, 'parso'/'परसों'/'ਪਰਸੋਂ'=day after tomorrow, "
+                            "'agle'/'अगले'/'agli'/'अगली'/'ਅਗਲੇ' X=next X. "
                             f"Weekday names always mean the NEXT upcoming occurrence: {weekday_examples}. "
-                            "Time words: 'subah'/'सुबह'=morning (AM), 'dopahar'/'दोपहर'=noon (12:00-15:00), "
-                            "'shaam'/'शाम'=evening (add 12 if hour<8, e.g. shaam 5=17:00), "
-                            "'raat'/'रात'=night (add 12 if hour<8). "
+                            "Time words: 'subah'/'सुबह'/'ਸਵੇਰੇ'=morning (AM), 'dopahar'/'दोपहर'/'ਦੁਪਹਿਰ'=noon (12:00-15:00), "
+                            "'shaam'/'शाम'/'ਸ਼ਾਮ'=evening (add 12 if hour<8, e.g. shaam 5=17:00), "
+                            "'raat'/'रात'/'ਰਾਤ'=night (add 12 if hour<8). "
                             "No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. "
                             "'baje'/'बजे'/'bje' means o'clock. Examples: '2 bje'->14:00, '3 बजे'->15:00, '10 बजे'->10:00. "
                             "'sawa'/'सवा'=+15min (सवा 3=3:15), 'saadhe'/'साढ़े'=+30min (साढ़े 3=3:30). "
