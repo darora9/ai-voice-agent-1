@@ -81,7 +81,9 @@ class StreamSession:
             # Pre-mute for 6s so connection tone / ring bleed never triggers VAD
             # _speak() will extend _muted_until once the actual greeting duration is known
             self._muted_until = time.monotonic() + 6.0
-            asyncio.create_task(self._speak(self.conversation.get_greeting()))
+            greeting = self.conversation.get_greeting()
+            print(f"[Agent] {greeting}")
+            asyncio.create_task(self._speak(greeting))
 
         elif event == "media":
             if not self.conversation:
