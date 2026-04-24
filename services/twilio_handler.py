@@ -147,10 +147,11 @@ class StreamSession:
                 return
             print(f"[Agent] {response}")
 
-            await self._speak(response)
+            duration = await self._speak(response)
 
             if self.conversation.state == State.DONE:
-                # _speak already waited for audio to finish; just close cleanly
+                # Wait for Twilio to finish playing the farewell before closing
+                await asyncio.sleep(duration)
                 try:
                     await self._ws.close()
                 except Exception:
@@ -162,10 +163,10 @@ class StreamSession:
     # TTS -> WebSocket audio injection
     # ------------------------------------------------------------------
 
-    async def _speak(self, text: str):
+    async def _speak(self, text: str) -> float:
         pcm = await self.speech.synthesize(text)
         if not pcm:
-            return
+            return 0.0
 
         mulaw = audioop.lin2ulaw(pcm, 2)
         duration = len(mulaw) / 8000.0
@@ -180,5 +181,6 @@ class StreamSession:
                     "media": {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
                 }))
             except Exception:
-                return  # socket already closed (e.g. caller hung up mid-greeting)
-        # No sleep needed — _muted_until blocks VAD for the full playback duration
+                return 0.0  # socket already closed (e.g. caller hung up mid-greeting)
+        # No sleep needed for normal turns — _muted_until blocks VAD for the full playback duration
+        return duration
