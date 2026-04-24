@@ -2,7 +2,7 @@
 Real-time bidirectional WebSocket media stream handler for Twilio <Connect><Stream>.
 
 Receives inbound caller audio (mulaw 8kHz, 20ms chunks).
-Runs energy-based VAD to detect end of speech (~400ms silence).
+Runs energy-based VAD to detect end of speech (~200ms silence).
 Sends TTS audio back through the same WebSocket -- no HTTP round-trips.
 
 Latency per turn: ~2-3 s   (vs 10-12 s with <Record> approach)

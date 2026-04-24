@@ -72,6 +72,20 @@ def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | No
     return before, after
 
 
+def _has_time_qualifier(text: str) -> bool:
+    """Return True if the text contains an explicit AM/PM qualifier.
+    When True, the LLM already resolved the correct hour — skip our PM flip."""
+    t = text.lower()
+    qualifiers = (
+        "subah", "सुबह", "morning",
+        "dopahar", "दोपहर", "duphar", "noon",
+        "shaam", "शाम", "sham", "evening",
+        "raat", "रात", "night",
+        "am", "pm",
+    )
+    return any(q in t for q in qualifiers)
+
+
 def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | None) -> str:
     parts = []
     if before:
@@ -91,11 +105,11 @@ def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | No
 
 
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
-    # fallback — not used for main flow anymore
+    # fallback — unused, kept for reference
     slots = ", ".join(suggestions)
     return (
-        f"Maafi kijiye, {date} ko {time} baje ka slot available nahi hai. "
-        f"In slots mein se chunein: {slots} baje. Aap kaunsa samay prefer karenge?"
+        f"माफ़ी चाहते हैं, {date} को {time} बजे का slot available नहीं है। "
+        f"इन slots में से चुनें: {slots} बजे।"
     )
 
 def _no_slots_on_date(date: str, is_today: bool = False) -> str:
@@ -200,9 +214,12 @@ class ConversationManager:
         return _greeting_with_hours(self.patient_name)
 
     async def _handle_datetime(self, text: str) -> str:
-        # If caller is correcting their name ("mera naam X hai"), re-extract it
+        # If caller is correcting their name, re-extract it
         t_lower = text.lower()
-        if any(kw in t_lower for kw in ("my name is", "naam hai", "naam he", "mera naam", "main hoon", "i am")):
+        if any(kw in t_lower for kw in (
+            "my name is", "naam hai", "naam he", "mera naam", "main hoon", "i am",
+            "मेरा नाम", "नाम है", "नाम हे", "मैं हूँ", "मैं हूं",
+        )):
             name = await self._extract_name(text)
             if name:
                 self.patient_name = name
@@ -250,13 +267,14 @@ class ConversationManager:
         # If LLM also found a date (e.g. 'कल सुबह 8 बजे' said while in WAIT_TIME), use it
         if new_date and not self._is_past_date(new_date):
             self.date = new_date
-        # PM flip: only for hours 1-6 (1-8 are pre-clinic; 7-8 are morning, never flip)
-        try:
-            h, m = map(int, time.split(":"))
-            if h < 7:
-                time = f"{h + 12:02d}:{m:02d}"
-        except Exception:
-            pass
+        # PM flip: only when no explicit qualifier (subah/shaam/raat)
+        if not _has_time_qualifier(text):
+            try:
+                h, m = map(int, time.split(":"))
+                if h < 7:
+                    time = f"{h + 12:02d}:{m:02d}"
+            except Exception:
+                pass
         self.time = time
         return await self._check_slot()
 
@@ -271,13 +289,14 @@ class ConversationManager:
                 return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
             self.date = new_date
             if time:
-                # Apply PM flip before storing
-                try:
-                    h, m = map(int, time.split(":"))
-                    if h < 9:
-                        time = f"{h + 12:02d}:{m:02d}"
-                except Exception:
-                    pass
+                # Apply PM flip only when no explicit qualifier
+                if not _has_time_qualifier(text):
+                    try:
+                        h, m = map(int, time.split(":"))
+                        if h < 7:
+                            time = f"{h + 12:02d}:{m:02d}"
+                    except Exception:
+                        pass
                 self.time = time
             else:
                 self.time = ""  # clear old failed time so _check_slot asks fresh
@@ -290,15 +309,15 @@ class ConversationManager:
             slots_str = ", ".join(self.available_slots)
             return f"कृपया इनमें से एक समय चुनें: {slots_str} बजे"
 
-        # If LLM returned an AM time (hour 1-6) that's outside clinic hours,
-        # flip it to PM — e.g. "02:00" from "2 bje" → "14:00"
+        # PM flip: only when no explicit qualifier (subah/shaam/raat)
         # Hours 7-8 are never flipped (could be genuine morning)
-        try:
-            h, m = map(int, time.split(":"))
-            if h < 7:
-                time = f"{h + 12:02d}:{m:02d}"
-        except Exception:
-            pass
+        if not _has_time_qualifier(text):
+            try:
+                h, m = map(int, time.split(":"))
+                if h < 7:
+                    time = f"{h + 12:02d}:{m:02d}"
+            except Exception:
+                pass
 
         matched = self._match_slot(time)
         if matched:
@@ -472,8 +491,9 @@ class ConversationManager:
             "kya slot", "koi slot", "slot available", "slots available",
             "kab available", "slots hain", "slots hai", "slots bata",
             "khali slot", "koi jagah", "slot khali",
-            "कोई slot", "खाली slot", "slot खाली",
+            "कोई slot", "खाली slot", "slot खाली", "slot है", "slot हैं",
             "kab hai slot", "kab milega slot", "kaun sa slot", "kon sa slot",
+            "कब मिलेगा", "कब available", "कौनसा slot", "slot मिलेगा", "slot बताएं",
         ]
         return any(kw in t for kw in keywords)
 
@@ -512,13 +532,14 @@ class ConversationManager:
             return _no_slots_on_date(query_date, is_today=is_today)
 
         if query_time:
-            # Apply PM flip same as other handlers (only hours 1-6)
-            try:
-                h, m = map(int, query_time.split(":"))
-                if h < 7:
-                    query_time = f"{h + 12:02d}:{m:02d}"
-            except Exception:
-                pass
+            # Apply PM flip only when no explicit qualifier (subah/shaam/raat)
+            if not _has_time_qualifier(text):
+                try:
+                    h, m = map(int, query_time.split(":"))
+                    if h < 7:
+                        query_time = f"{h + 12:02d}:{m:02d}"
+                except Exception:
+                    pass
             # Check if requested time is already in the past (today only)
             import datetime as _dt
             IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))

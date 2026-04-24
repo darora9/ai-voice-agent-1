@@ -21,9 +21,9 @@ def get_today_human() -> str:
 
 
 def get_system_prompt() -> str:
-    now = datetime.now()
-    today_human = now.strftime("%A, %d %B %Y")   # e.g. "Wednesday, 22 April 2026"
-    today_iso = now.strftime("%Y-%m-%d")           # e.g. "2026-04-22"
+    now = datetime.now(tz=IST)
+    today_human = now.strftime("%A, %d %B %Y")
+    today_iso = now.strftime("%Y-%m-%d")
     return f"""Aap {CLINIC_NAME} ke AI receptionist hain. Aapka kaam {DOCTOR_NAME} ke saath doctor appointment book karna hai.
 
 Aaj ki taareekh: {today_human} ({today_iso})
