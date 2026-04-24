@@ -318,8 +318,8 @@ class ConversationManager:
         text_lower = text.lower().strip()
         # Matches both romanized AND Devanagari affirmatives/negatives
         affirm = bool(_re.search(
-            r"(haan|hnji|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|zaroor|sahi|done"
-            r"|हाँ|हां|हा\b|हजी|हन्जी|बिल्कुल|ठीक|करो|ज़रूर|जरूर|सही|दीजिए|dijiye|kijiye|कीजिए)",
+            r"(haan|hnji|ji\b|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|zaroor|sahi|done"
+            r"|हाँ|हां|हा\b|जी|हजी|हन्जी|बिल्कुल|ठीक|करो|ज़रूर|जरूर|सही|दीजिए|dijiye|kijiye|कीजिए)",
             text_lower
         ))
         deny = bool(_re.search(
