@@ -150,6 +150,7 @@ class ConversationManager:
         self.patient_name: str = ""
         self.patient_city: str = ""
         self.patient_phone: str = caller_phone  # from Twilio 'From' field
+        self._city_retried: bool = False        # allow one re-ask
         self.date: str = ""         # YYYY-MM-DD
         self.time: str = ""         # HH:MM
         self.available_slots: list = []
@@ -232,10 +233,21 @@ class ConversationManager:
         return "आप किस शहर से हैं?"
 
     async def _handle_city(self, text: str) -> str:
-        city = await self._extract_city(text)
+        # Ignore filler / affirmatives that aren't city names
+        _filler = ("theek", "thik", "okay", "ok", "haan", "ji", "ha ", "ठीक", "हाँ", "जी", "हां")
+        tl = text.lower().strip()
+        is_filler = not tl or len(tl) <= 2 or any(tl.startswith(f) for f in _filler)
+
+        city = None if is_filler else await self._extract_city(text)
+
         if not city:
-            # Accept whatever they said as city if LLM couldn't extract — don't block flow
-            city = text.strip().title()
+            if not self._city_retried:
+                self._city_retried = True
+                return "शहर समझ नहीं आया। कृपया शहर का नाम बताएं, जैसे 'Patiala' या 'Ludhiana'।"
+            # Second failure — skip city, don't block flow
+            self.state = State.WAIT_DATETIME
+            return _greeting_with_hours(self.patient_name)
+
         self.patient_city = city
         self.state = State.WAIT_DATETIME
         return _greeting_with_hours(self.patient_name)
