@@ -130,19 +130,38 @@ class CalendarService:
                 .execute()
             )
 
-            booked = set()
+            booked_ranges = []  # list of (start_dt, end_dt) for overlap check
             for event in events_result.get("items", []):
-                start = event["start"].get("dateTime", "")
-                if start:
-                    booked_time = datetime.fromisoformat(start).strftime("%H:%M")
-                    booked.add(booked_time)
+                ev_start = event["start"].get("dateTime") or event["start"].get("date")
+                ev_end   = event["end"].get("dateTime")   or event["end"].get("date")
+                if not ev_start or not ev_end:
+                    continue
+                try:
+                    # Handle both date-only (all-day) and dateTime events
+                    if "T" in ev_start:
+                        s = datetime.fromisoformat(ev_start).replace(tzinfo=None)
+                        e = datetime.fromisoformat(ev_end).replace(tzinfo=None)
+                    else:
+                        s = datetime.strptime(ev_start, "%Y-%m-%d").replace(hour=0, minute=0)
+                        e = datetime.strptime(ev_end,   "%Y-%m-%d").replace(hour=23, minute=59)
+                    booked_ranges.append((s, e))
+                except Exception:
+                    pass
+
+            def _is_blocked(slot_dt: datetime) -> bool:
+                slot_end = slot_dt + timedelta(minutes=self.appointment_duration)
+                for s, e in booked_ranges:
+                    # Overlap: slot starts before event ends AND slot ends after event starts
+                    if slot_dt < e and slot_end > s:
+                        return True
+                return False
 
             # Generate all slots (every 30 mins, 9am–6pm)
             all_slots = []
             current = start_of_day
             while current < end_of_day:
                 slot = current.strftime("%H:%M")
-                if slot not in booked:
+                if not _is_blocked(current):
                     all_slots.append(slot)
                 current += timedelta(minutes=self.appointment_duration)
 

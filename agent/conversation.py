@@ -263,8 +263,16 @@ class ConversationManager:
                         "content": (
                             "Extract the city name from the text. "
                             "Input may be Punjabi (Gurmukhi), Hindi (Devanagari), English, or romanized. "
-                            "Common Punjabi cities: Ludhiana, Amritsar, Jalandhar, Patiala, Bathinda, Mohali, Phagwara, Hoshiarpur, Gurdaspur, Pathankot, Firozpur. "
-                            "Return the city name in proper English (e.g. 'Ludhiana', 'Amritsar', 'Delhi'). "
+                            "Punjab cities and towns: Ludhiana, Amritsar, Jalandhar, Patiala, Bathinda, Mohali, "
+                            "Phagwara, Hoshiarpur, Gurdaspur, Pathankot, Firozpur, Moga, Barnala, Sangrur, "
+                            "Faridkot, Muktsar, Fazilka, Kapurthala, Ropar, Nawanshahr, SAS Nagar, Fatehgarh Sahib, "
+                            "Tarn Taran, Mansa, Malerkotla, Khanna, Rajpura, Zirakpur, Derabassi, Morinda, "
+                            "Sirhind, Abohar, Anandpur Sahib, Nangal, Rupnagar, Sunam, Rampura Phul, Zira, "
+                            "Nakodar, Sultanpur Lodhi, Qadian, Dera Baba Nanak, Kartarpur, Batala, Dinanagar, "
+                            "Mukerian, Dasuya, Garhshankar, Balachaur, Banga, Nawanshahr, Phillaur, Rahon, "
+                            "Samrala, Machhiwara, Doraha, Payal, Maloud, Kharar, Kurali, Chamkaur Sahib, "
+                            "Chandigarh, Delhi, Mumbai, Bangalore, Hyderabad, Chennai, Kolkata, Pune. "
+                            "Return city in proper English (e.g. 'Ludhiana', 'Patiala'). "
                             'Return only JSON: {"city": "CityName"} or {"city": null} if no city found.'
                         ),
                     },
