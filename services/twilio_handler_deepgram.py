@@ -30,10 +30,11 @@ TTS_CHUNK = 1600  # ~200ms of mulaw @ 8kHz per send
 # Matches any Hindi (Devanagari), Punjabi (Gurmukhi), or Latin letter
 _HAS_LETTER = re.compile(r'[a-zA-Z\u0900-\u097F\u0A00-\u0A7F]')
 
-# VAD tuning — all values in 20ms frame units (Twilio sends 20ms chunks)
-VAD_AGGRESSIVENESS = 2   # 0=permissive … 3=strict; 2 suits telephone quality
-VAD_SILENCE_FRAMES = 4   # 4 × 20ms = 80ms silence → declare speech ended
-VAD_MIN_SPEECH_MS  = 80  # discard clips < 80ms (noise bursts, breathing)
+# Energy VAD tuning — all values in 20ms frame units (Twilio sends 20ms chunks)
+# No external package needed — uses audioop.rms which is built-in.
+VAD_RMS_THRESHOLD  = 180  # RMS above this = active speech (telephone typical: 150-250)
+VAD_SILENCE_FRAMES = 4    # 4 × 20ms = 80ms silence → declare speech ended
+VAD_MIN_SPEECH_MS  = 80   # discard clips < 80ms (noise bursts, breathing)
 
 
 class StreamSession:
@@ -51,7 +52,6 @@ class StreamSession:
         self._transcript_q  = asyncio.Queue()
         self._filler_mulaw: bytes = b""  # pre-cached "ठीक है जी"
         # VAD state — reset after each utterance
-        self._vad           = None       # webrtcvad.Vad instance, created in _handle_start
         self._vad_buf       = bytearray()
         self._vad_has_speech = False
         self._vad_silence   = 0
@@ -101,7 +101,6 @@ class StreamSession:
     # ------------------------------------------------------------------
 
     async def _handle_start(self, msg: dict):
-        import webrtcvad
         from agent.conversation import ConversationManager
         self.call_sid   = msg["start"]["callSid"]
         self.stream_sid = msg["start"]["streamSid"]
@@ -112,8 +111,7 @@ class StreamSession:
         if not self._dg_key:
             print("[Deepgram] ERROR: DEEPGRAM_API_KEY not set")
 
-        self._vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
-        print(f"[VAD] webrtcvad ready — aggressiveness={VAD_AGGRESSIVENESS}, "
+        print(f"[VAD] Energy VAD ready — RMS threshold={VAD_RMS_THRESHOLD}, "
               f"silence threshold={VAD_SILENCE_FRAMES * 20}ms")
 
         # Cache filler FIRST — avoids Sarvam 429 race with greeting TTS.
@@ -157,7 +155,7 @@ class StreamSession:
     def _vad_process(self, mulaw: bytes):
         """
         Called synchronously for every 20ms Twilio chunk.
-        Converts mulaw→PCM, runs webrtcvad, accumulates buffer.
+        Measures RMS energy of PCM — no external package needed.
         When silence follows speech, fires off _transcribe_and_queue as a task.
         """
         # During TTS playback: reset buffer so echo doesn't bleed into next utterance.
@@ -166,11 +164,7 @@ class StreamSession:
             return
 
         pcm = audioop.ulaw2lin(mulaw, 2)  # mulaw → 16-bit PCM @ 8kHz
-
-        try:
-            is_speech = self._vad.is_speech(pcm, 8000)
-        except Exception:
-            is_speech = False
+        is_speech = audioop.rms(pcm, 2) > VAD_RMS_THRESHOLD
 
         if is_speech:
             self._vad_has_speech = True
