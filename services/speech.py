@@ -53,8 +53,8 @@ class SpeechService:
 
     async def transcribe_mulaw(self, mulaw_audio: bytes) -> str:
         """
-        Convert mulaw 8kHz → 16kHz WAV, transcribe with Sarvam Saaras v3.
-        Uses codemix mode so Hindi+English names are preserved in Latin script.
+        Convert mulaw 8kHz → 16kHz WAV, transcribe with Sarvam Saaras v2 codemix.
+        Handles Hindi + English + Punjabi natively. Indian names and cities preserved.
         Returns the transcript string.
         """
         try:
@@ -70,19 +70,18 @@ class SpeechService:
                 wf.writeframes(pcm_16k)
             wav_buffer.seek(0)
 
-            async with httpx.AsyncClient(timeout=15) as client:
-                response = await client.post(
-                    "https://api.sarvam.ai/speech-to-text",
-                    headers={"api-subscription-key": self._sarvam_key},
-                    files={"file": ("audio.wav", wav_buffer.read(), "audio/wav")},
-                    data={
-                        "model": "saaras:v3",
-                        "mode": "codemix",          # preserves English names like Rahul, Rishav
-                        "language_code": "hi-IN",
-                    },
-                )
-                response.raise_for_status()
-                transcript = response.json().get("transcript", "").strip()
+            response = await self._http.post(
+                "https://api.sarvam.ai/speech-to-text",
+                headers={"api-subscription-key": self._sarvam_key},
+                files={"file": ("audio.wav", wav_buffer.read(), "audio/wav")},
+                data={
+                    "model": "saaras:v2",
+                    "mode": "codemix",
+                    "language_code": "hi-IN",
+                },
+            )
+            response.raise_for_status()
+            transcript = response.json().get("transcript", "").strip()
 
             print(f"[STT] {transcript}")
             return transcript

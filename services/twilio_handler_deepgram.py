@@ -2,15 +2,15 @@
 AI Voice Agent - Twilio bidirectional media stream handler.
 
 Architecture: two concurrent tasks per call
-  1. _twilio_loop   : read Twilio WS -> webrtcvad (local) -> buffer -> Deepgram REST API
+  1. _twilio_loop   : read Twilio WS -> energy VAD (local) -> buffer -> Sarvam Saaras v2
   2. _pipeline_loop : asyncio.Queue -> ConversationManager -> TTS -> Twilio
 
-webrtcvad runs in-process (~80ms speech-end detection vs 500ms Deepgram endpointing).
-When speech ends, the buffered mulaw clip is POSTed to Deepgram nova-2 REST for transcription.
+Energy VAD runs in-process (~80ms speech-end detection).
+When speech ends, the buffered mulaw clip is sent to Sarvam Saaras v2 codemix for transcription.
 Transcript is put_nowait() into the asyncio.Queue for the pipeline loop.
 
-STT: Deepgram nova-2 REST API — hi, mulaw 8kHz (no streaming connection needed)
-VAD: webrtcvad — aggressiveness=2, 80ms silence-end detection, runs fully in-process
+STT: Sarvam Saaras v2 codemix — Hindi + English + Punjabi, Indian names + cities native
+VAD: Energy-based audioop.rms — no external package, 80ms silence-end detection
 TTS: Sarvam bulbul:v3 (persistent HTTP client in SpeechService)
 """
 
@@ -22,7 +22,6 @@ import os
 import re
 import time
 
-import httpx
 from fastapi import WebSocket
 
 TTS_CHUNK = 1600  # ~200ms of mulaw @ 8kHz per send
@@ -44,9 +43,6 @@ class StreamSession:
         self.stream_sid     = None
         self.conversation   = None
         self._ws            = None
-        self._dg_key        = os.environ.get("DEEPGRAM_API_KEY", "")
-        # Persistent HTTP client for Deepgram REST — reuses TCP connection
-        self._dg_http       = httpx.AsyncClient(timeout=10)
         self._muted_until   = 0.0
         self._processing    = False
         self._transcript_q  = asyncio.Queue()
@@ -102,7 +98,6 @@ class StreamSession:
             await asyncio.gather(*self._stt_tasks, return_exceptions=True)
             self._stt_tasks.clear()
             await asyncio.gather(t_pl, return_exceptions=True)
-            await self._dg_http.aclose()
 
     # ------------------------------------------------------------------
     # Start
@@ -116,8 +111,8 @@ class StreamSession:
         self.conversation = ConversationManager(caller_phone=caller_number)
         print(f"[Call] {self.call_sid} from {caller_number}")
 
-        if not self._dg_key:
-            print("[Deepgram] ERROR: DEEPGRAM_API_KEY not set")
+        if not self.speech._sarvam_key:
+            print("[Sarvam] ERROR: SARVAM_API_KEY not set")
 
         print(f"[VAD] Energy VAD ready — RMS threshold={VAD_RMS_THRESHOLD}, "
               f"silence threshold={VAD_SILENCE_FRAMES * 20}ms")
@@ -200,38 +195,20 @@ class StreamSession:
         self._vad_sframes    = 0
 
     # ------------------------------------------------------------------
-    # Deepgram REST transcription
+    # Sarvam Saaras v2 codemix transcription
     # ------------------------------------------------------------------
 
     async def _transcribe_and_queue(self, mulaw_audio: bytes):
-        """POST buffered mulaw clip to Deepgram nova-2 REST API, queue the transcript."""
+        """Transcribe buffered mulaw via Sarvam Saaras v2 codemix, queue the transcript."""
         # Early exit if pipeline already busy — prevents double-fire when two VAD
         # clips race before _processing is set True by the pipeline loop.
         if self._processing:
             return
         try:
-            resp = await self._dg_http.post(
-                "https://api.deepgram.com/v1/listen",
-                params={
-                    "model":       "nova-2",
-                    "language":    "hi",
-                    "encoding":    "mulaw",
-                    "sample_rate": "8000",
-                    "channels":    "1",
-                },
-                headers={
-                    "Authorization": f"Token {self._dg_key}",
-                    "Content-Type":  "audio/mulaw",
-                },
-                content=mulaw_audio,
-            )
-            resp.raise_for_status()
-            transcript = (
-                resp.json()["results"]["channels"][0]["alternatives"][0]["transcript"].strip()
-            )
+            transcript = await self.speech.transcribe_mulaw(mulaw_audio)
             if not transcript or not _HAS_LETTER.search(transcript):
                 return
-            # Re-check mute/busy — TTS may have started while we awaited Deepgram
+            # Re-check mute/busy — TTS may have started while we awaited Sarvam
             if time.monotonic() < self._muted_until:
                 print(f"[STT] Muted (late): {transcript}")
                 return
