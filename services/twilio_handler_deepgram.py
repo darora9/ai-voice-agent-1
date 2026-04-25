@@ -195,6 +195,10 @@ class StreamSession:
 
     async def _transcribe_and_queue(self, mulaw_audio: bytes):
         """POST buffered mulaw clip to Deepgram nova-2 REST API, queue the transcript."""
+        # Early exit if pipeline already busy — prevents double-fire when two VAD
+        # clips race before _processing is set True by the pipeline loop.
+        if self._processing:
+            return
         try:
             resp = await self._dg_http.post(
                 "https://api.deepgram.com/v1/listen",
@@ -258,7 +262,12 @@ class StreamSession:
             await self._speak(response)
 
             if self.conversation.state == State.DONE:
-                await asyncio.sleep(1.5)
+                # Wait for Twilio to echo back the mark event — that means audio
+                # finished playing on the caller's phone. Only then close.
+                deadline = time.monotonic() + 15.0
+                while self._muted_until > 0.0 and time.monotonic() < deadline:
+                    await asyncio.sleep(0.1)
+                await asyncio.sleep(0.3)  # small grace buffer
                 try:
                     await self._ws.close()
                 except Exception:
