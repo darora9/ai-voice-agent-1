@@ -75,9 +75,9 @@ class SpeechService:
                 headers={"api-subscription-key": self._sarvam_key},
                 files={"file": ("audio.wav", wav_buffer.read(), "audio/wav")},
                 data={
-                    "model": "saaras:v2",
+                    "model": "saaras:v3",
                     "mode": "codemix",
-                    "language_code": "hi-IN",
+                    "language_code": "unknown",
                 },
             )
             response.raise_for_status()
