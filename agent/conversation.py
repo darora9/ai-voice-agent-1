@@ -42,6 +42,18 @@ class State(Enum):
 # Fixed Hindi response templates — no LLM variation, always consistent
 # ---------------------------------------------------------------------------
 
+def _human_date(date_iso: str) -> str:
+    """Convert YYYY-MM-DD to Hindi human-readable: 'सोमवार, 27 April'"""
+    import datetime as _dt
+    try:
+        d = _dt.date.fromisoformat(date_iso)
+        day_names = ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"]
+        month_names = ["January","February","March","April","May","June",
+                       "July","August","September","October","November","December"]
+        return f"{day_names[d.weekday()]}, {d.day} {month_names[d.month-1]}"
+    except Exception:
+        return date_iso
+
 def _greeting_with_hours(name: str) -> str:
     return (
         f"{name} जी, नमस्ते! "
@@ -50,13 +62,13 @@ def _greeting_with_hours(name: str) -> str:
     )
 
 def _ask_time(date: str) -> str:
-    return f"{date} ठीक है। किस समय आना चाहेंगे?"
+    return f"{_human_date(date)} ठीक है। किस समय आना चाहेंगे?"
 
 def _ask_date(time: str) -> str:
-    return f"{time} ठीक है। कौनसा दिन आना चाहेंगे?"
+    return f"{time} बजे ठीक है। कौनसा दिन आना चाहेंगे?"
 
 def _slot_available_confirm(name: str, date: str, time: str) -> str:
-    return f"{name} जी, {date} को {time} बजे slot available है। Confirm करूँ?"
+    return f"{name} जी, {_human_date(date)} को {time} बजे slot available है। Confirm करूँ?"
 
 def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | None]:
     """Return (slot_before, slot_after) closest to requested time from available list."""
@@ -109,7 +121,7 @@ def _slot_taken(date: str, time: str, suggestions: list) -> str:
 def _no_slots_on_date(date: str, is_today: bool = False) -> str:
     if is_today:
         return "आज कोई slot नहीं है। कोई और दिन बताएं।"
-    return f"{date} को कोई slot नहीं है। कोई और तारीख़ बताएं।"
+    return f"{_human_date(date)} को कोई slot नहीं है। कोई और तारीख़ बताएं।"
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
     import datetime as _dt
@@ -418,6 +430,19 @@ class ConversationManager:
             "कितने बजे", "कब आएंगे", "कब available", "क्या समय", "टाइमिंग"
         )):
             return f"Clinic का समय {CLINIC_HOURS} है। आप किस समय आना चाहेंगे?"
+
+        # "कोई भी" / "जो भी available हो" — pick first available slot
+        if any(kw in tl for kw in ("koi bhi", "jo bhi", "kuch bhi", "any", "कोई भी", "जो भी", "कुछ भी", "ਕੋਈ ਵੀ")):
+            if self.date:
+                slots = self.calendar.get_available_slots(self.date)
+                if slots and slots != "SUNDAY":
+                    avail = [s for s in slots if not self._is_past_slot(self.date, s)]
+                    if avail:
+                        self.time = avail[0]
+                        self.available_slots = avail
+                        self.state = State.WAIT_CONFIRM
+                        return _slot_available_confirm(self.patient_name, self.date, self.time)
+            return "कृपया एक समय बताएं, जैसे 'सुबह 10 बजे' या 'शाम 3 बजे'।"
         dt = await self._extract_datetime(text)
         time = dt.get("time")
         new_date = dt.get("date")
@@ -455,6 +480,26 @@ class ConversationManager:
         return await self._check_slot()
 
     async def _handle_slot_choice(self, text: str) -> str:
+        tl = text.lower()
+
+        # "कोई भी" or "जो available हो" — pick first
+        if any(kw in tl for kw in ("koi bhi", "jo bhi", "kuch bhi", "any", "कोई भी", "जो भी", "कुछ भी", "ਕੋਈ ਵੀ")):
+            if self.available_slots:
+                avail = [s for s in self.available_slots if not self._is_past_slot(self.date, s)]
+                if avail:
+                    self.time = avail[0]
+                    self.state = State.WAIT_CONFIRM
+                    return _slot_available_confirm(self.patient_name, self.date, self.time)
+
+        # Bare denial — ask what they'd prefer
+        import re as _re
+        if _re.search(r'^(nahi|nahin|no|नहीं|नहि|ना|ਨਹੀਂ)[\.!।]?$', tl.strip()):
+            if self.available_slots:
+                first, last = self.available_slots[0], self.available_slots[-1]
+                return f"{first} से {last} बजे के बीच में कौनसा समय ठीक रहेगा?"
+            self.state = State.WAIT_DATETIME
+            return "कोई और दिन और समय बताएं।"
+
         dt = await self._extract_datetime(text)
         new_date = dt.get("date")
         time = dt.get("time")
@@ -507,7 +552,6 @@ class ConversationManager:
     async def _handle_confirm(self, text: str) -> str:
         import re as _re
         text_lower = text.lower().strip()
-        # Matches both romanized AND Devanagari affirmatives/negatives
         affirm = bool(_re.search(
             r"(haan|hnji|ji\b|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|kar\s*de"
             r"|karde|kardo|zaroor|sahi|done|book\b|dijiye|kijiye"
@@ -517,19 +561,47 @@ class ConversationManager:
             text_lower
         ))
         deny = bool(_re.search(
-            r"(nahi|nahin|no\b|nope|cancel|mat\b|naa\b|नहीं|नहि|नहीं|मत\b|ना\b|ਨਹੀਂ|ਨਹੀ|ਨਾ\b)",
+            r"(nahi|nahin|no\b|nope|cancel|mat\b|naa\b|नहीं|नहि|मत\b|ना\b|ਨਹੀਂ|ਨਹੀ|ਨਾ\b)",
             text_lower
         ))
 
         if affirm and not deny:
             return await self._book_now()
-        elif deny:
-            self.date = ""
-            self.time = ""
-            self.state = State.WAIT_DATETIME
-            return "ठीक है। कृपया नया दिन और समय बताएं।"
-        else:
-            return f"{self.patient_name} जी, {self.date} को {self.time} बजे — क्या confirm करूँ?"
+
+        if deny:
+            # Check if deny includes a new time (same date, different time)
+            dt = await self._extract_datetime(text)
+            new_date = dt.get("date")
+            new_time = dt.get("time")
+
+            if new_time and not _has_time_qualifier(text):
+                try:
+                    h, m = map(int, new_time.split(":"))
+                    if h < 7:
+                        new_time = f"{h + 12:02d}:{m:02d}"
+                except Exception:
+                    pass
+
+            if new_date and new_date != self.date:
+                # Completely new date+time
+                if self._is_past_date(new_date):
+                    return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
+                self.date = new_date
+                self.time = new_time or ""
+                return await self._check_slot()
+            elif new_time:
+                # Same date, new time
+                self.time = new_time
+                return await self._check_slot()
+            else:
+                # Plain denial — ask fresh
+                self.date = ""
+                self.time = ""
+                self.state = State.WAIT_DATETIME
+                return "ठीक है। कोई और दिन और समय बताएं।"
+
+        # Ambiguous — re-confirm
+        return f"{self.patient_name} जी, {_human_date(self.date)} को {self.time} बजे — क्या confirm करूँ?"
 
     async def _book_now(self) -> str:
         result = self.calendar.book_appointment(
@@ -673,7 +745,7 @@ class ConversationManager:
             self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
-                f"{self.date} को {first} बजे से {last} बजे तक slots available हैं। "
+                f"{_human_date(self.date)} को {first} बजे से {last} बजे तक slots available हैं। "
                 "आप कौनसा समय prefer करेंगे?"
             )
         else:
@@ -846,11 +918,11 @@ class ConversationManager:
             self.state = State.WAIT_SLOT_CHOICE
             return _slot_taken_nearby(query_date, query_time, before, after)
         else:
-            # No time given — ask for time next
+            # No time given — list slots and ask
             self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
-                f"{query_date} को {first} बजे से {last} बजे तक slots available हैं। "
+                f"{_human_date(query_date)} को {first} बजे से {last} बजे तक slots available हैं। "
                 "आप कौनसा समय prefer करेंगे?"
             )
 
