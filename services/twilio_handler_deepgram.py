@@ -32,7 +32,7 @@ _HAS_LETTER = re.compile(r'[a-zA-Z\u0900-\u097F\u0A00-\u0A7F]')
 # Energy VAD tuning — all values in 20ms frame units (Twilio sends 20ms chunks)
 # No external package needed — uses audioop.rms which is built-in.
 VAD_RMS_THRESHOLD  = 180  # RMS above this = active speech (telephone typical: 150-250)
-VAD_SILENCE_FRAMES = 4    # 4 × 20ms = 80ms silence → declare speech ended
+VAD_SILENCE_FRAMES = 6    # 6 × 20ms = 120ms silence → declare speech ended
 VAD_MIN_SPEECH_MS  = 150  # discard clips < 150ms (noise bursts, breathing)
 
 
