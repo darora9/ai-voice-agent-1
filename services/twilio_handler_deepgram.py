@@ -27,6 +27,10 @@ TTS_CHUNK = 1600  # ~200ms of mulaw @ 8kHz per send
 # Matches any Hindi (Devanagari), Punjabi (Gurmukhi), or Latin letter
 _HAS_LETTER = re.compile(r'[a-zA-Z\u0900-\u097F\u0A00-\u0A7F]')
 
+# Barge-in: energy threshold (RMS) and consecutive frames needed to confirm real speech
+BARGE_IN_RMS    = 220  # below this is noise/breathing; above is real speech
+BARGE_IN_FRAMES = 3    # 3 × 20ms = 60ms of confirmed speech to trigger
+
 
 class StreamSession:
     def __init__(self, speech_service):
@@ -43,6 +47,9 @@ class StreamSession:
         self._processing    = False
         self._transcript_q  = asyncio.Queue()
         self._filler_mulaw: bytes = b""  # pre-cached "ठीक है जी"
+        self._speaking      = False      # True only while _speak() is sending audio chunks
+        self._barge_in      = asyncio.Event()  # set by _twilio_loop, checked by _speak
+        self._barge_in_cnt  = 0          # consecutive above-threshold frames
 
     # ------------------------------------------------------------------
     # Entry point
@@ -129,6 +136,17 @@ class StreamSession:
                         self._push_stream.write(pcm_16k)
                     except Exception:
                         pass
+
+                    # Barge-in detection — runs even during mute (while agent is speaking).
+                    # Uses pcm_8k already decoded above — no extra decode needed.
+                    if self._speaking:
+                        rms = audioop.rms(pcm_8k, 2)
+                        if rms > BARGE_IN_RMS:
+                            self._barge_in_cnt += 1
+                            if self._barge_in_cnt >= BARGE_IN_FRAMES:
+                                self._barge_in.set()
+                        else:
+                            self._barge_in_cnt = 0
 
             elif event == "mark":
                 # Twilio echoes this back exactly when audio finishes playing on the phone.
@@ -300,6 +318,16 @@ class StreamSession:
     # TTS -> Twilio audio
     # ------------------------------------------------------------------
 
+    async def _send_clear(self):
+        """Tell Twilio to flush its audio playback buffer immediately (barge-in)."""
+        try:
+            await self._ws.send_text(json.dumps({
+                "event":     "clear",
+                "streamSid": self.stream_sid,
+            }))
+        except Exception:
+            pass
+
     async def _speak(self, text: str) -> float:
         pcm = await self.speech.synthesize(text)
         if not pcm:
@@ -311,16 +339,31 @@ class StreamSession:
         # Safety fallback; mark event releases mute precisely before this expires
         self._muted_until = time.monotonic() + duration + 2.0
 
-        for i in range(0, len(mulaw), TTS_CHUNK):
-            try:
-                await self._ws.send_text(json.dumps({
-                    "event":     "media",
-                    "streamSid": self.stream_sid,
-                    "media":     {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
-                }))
-            except Exception:
-                self._muted_until = 0.0
-                return 0.0
+        self._speaking     = True
+        self._barge_in.clear()
+        self._barge_in_cnt = 0
+        try:
+            for i in range(0, len(mulaw), TTS_CHUNK):
+                # Check for barge-in after every chunk (~200ms)
+                if self._barge_in.is_set():
+                    print("[Barge-in] User interrupted — clearing Twilio buffer")
+                    await self._send_clear()
+                    self._muted_until  = 0.0
+                    self._barge_in.clear()
+                    self._barge_in_cnt = 0
+                    return 0.0
+                try:
+                    await self._ws.send_text(json.dumps({
+                        "event":     "media",
+                        "streamSid": self.stream_sid,
+                        "media":     {"payload": base64.b64encode(mulaw[i:i + TTS_CHUNK]).decode()},
+                    }))
+                except Exception:
+                    self._muted_until = 0.0
+                    return 0.0
+        finally:
+            self._speaking     = False
+            self._barge_in_cnt = 0
 
         # Mark event — Twilio echoes it back exactly when audio finishes on the phone
         try:
