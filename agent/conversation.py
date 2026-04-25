@@ -358,6 +358,11 @@ class ConversationManager:
                 self.patient_name = name
                 return _greeting_with_hours(self.patient_name)
 
+        # Bare affirmative with no date/time info — nudge gently instead of repeating full prompt
+        _bare_affirm = ("हाँ", "हां", "हाँ।", "हां।", "haan", "ha", "ok", "okay", "ठीक", "जी", "ji")
+        if t_lower.strip().rstrip(".!।") in _bare_affirm or t_lower.strip() in _bare_affirm:
+            return "किस दिन और कितने बजे appointment चाहिए?"
+
         dt = await self._extract_datetime(text)
         date, time = dt.get("date"), dt.get("time")
 
@@ -764,9 +769,13 @@ class ConversationManager:
             "kya slot", "koi slot", "slot available", "slots available",
             "kab available", "slots hain", "slots hai", "slots bata",
             "khali slot", "koi jagah", "slot khali",
+            "kaun kaun", "kaun-kaun", "kon kon", "kon-kon",
+            "कौन से slot", "कौनसे slot", "कौन कौन", "कौन-कौन",
+            "कौनसे स्लॉट", "खाली स्लॉट",
             "कोई slot", "खाली slot", "slot खाली", "slot है", "slot हैं",
             "kab hai slot", "kab milega slot", "kaun sa slot", "kon sa slot",
             "कब मिलेगा", "कब available", "कौनसा slot", "slot मिलेगा", "slot बताएं",
+            "कोईन सी slot", "available slot", "which slot", "what slot",
         ]
         return any(kw in t for kw in keywords)
 

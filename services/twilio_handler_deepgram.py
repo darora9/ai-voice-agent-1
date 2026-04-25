@@ -235,9 +235,12 @@ class StreamSession:
             print("[Filler] Pre-cached")
 
     async def _play_filler(self):
-        """Send pre-cached filler audio to Twilio immediately (no mute/mark)."""
+        """Send pre-cached filler audio to Twilio. Mute input during playback."""
         if not self._filler_mulaw or not self.stream_sid:
             return
+        filler_duration = len(self._filler_mulaw) / 8000.0
+        # Extend mute so no stray transcript can slip in during filler playback
+        self._muted_until = max(self._muted_until, time.monotonic() + filler_duration + 0.3)
         for i in range(0, len(self._filler_mulaw), TTS_CHUNK):
             try:
                 await self._ws.send_text(json.dumps({
