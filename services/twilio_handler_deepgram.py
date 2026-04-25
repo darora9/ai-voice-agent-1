@@ -34,7 +34,7 @@ _HAS_LETTER = re.compile(r'[a-zA-Z\u0900-\u097F\u0A00-\u0A7F]')
 # No external package needed — uses audioop.rms which is built-in.
 VAD_RMS_THRESHOLD  = 180  # RMS above this = active speech (telephone typical: 150-250)
 VAD_SILENCE_FRAMES = 4    # 4 × 20ms = 80ms silence → declare speech ended
-VAD_MIN_SPEECH_MS  = 80   # discard clips < 80ms (noise bursts, breathing)
+VAD_MIN_SPEECH_MS  = 150  # discard clips < 150ms (noise bursts, breathing)
 
 
 class StreamSession:
@@ -51,6 +51,7 @@ class StreamSession:
         self._processing    = False
         self._transcript_q  = asyncio.Queue()
         self._filler_mulaw: bytes = b""  # pre-cached "ठीक है जी"
+        self._stt_tasks: set  = set()    # track in-flight transcription tasks for clean shutdown
         # VAD state — reset after each utterance
         self._vad_buf       = bytearray()
         self._vad_has_speech = False
@@ -93,6 +94,13 @@ class StreamSession:
                 print(f"[Stream Error] {self.call_sid}: {e}")
         finally:
             t_pl.cancel()
+            # Cancel any in-flight Deepgram REST tasks before closing the HTTP client.
+            # Without this, aclose() pulls the socket out from under a pending request
+            # and produces an empty [STT Error] on every normal hangup.
+            for task in list(self._stt_tasks):
+                task.cancel()
+            await asyncio.gather(*self._stt_tasks, return_exceptions=True)
+            self._stt_tasks.clear()
             await asyncio.gather(t_pl, return_exceptions=True)
             await self._dg_http.aclose()
 
@@ -179,7 +187,9 @@ class StreamSession:
                 if speech_ms >= VAD_MIN_SPEECH_MS:
                     audio = bytes(self._vad_buf)
                     self._reset_vad()
-                    asyncio.create_task(self._transcribe_and_queue(audio))
+                    task = asyncio.create_task(self._transcribe_and_queue(audio))
+                    self._stt_tasks.add(task)
+                    task.add_done_callback(self._stt_tasks.discard)
                 else:
                     self._reset_vad()
 
