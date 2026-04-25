@@ -19,7 +19,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 from services.speech import SpeechService
-from services.twilio_handler import StreamSession
+from services.twilio_handler_deepgram import StreamSession
 from services.calendar_service import CalendarService
 from services.cancellation_monitor import run_monitor
 

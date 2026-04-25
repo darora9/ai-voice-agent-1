@@ -4,6 +4,7 @@ Speech services:
   TTS → Sarvam bulbul:v3       (natural Hindi voice)
 """
 
+import asyncio
 import os
 import io
 import base64
@@ -22,6 +23,8 @@ class SpeechService:
         self._sarvam_key = os.environ["SARVAM_API_KEY"]
         self._tts_speaker = os.getenv("SARVAM_TTS_SPEAKER", "priya")
         self._tts_lang = os.getenv("SARVAM_LANGUAGE_CODE", "hi-IN")
+        # Persistent client: reuses TCP connection across all TTS calls (~150ms saved each)
+        self._http = httpx.AsyncClient(timeout=15)
 
     # ------------------------------------------------------------------
     # Speech-to-Text  (mulaw 8kHz → Hindi transcript via Sarvam Saaras v3)
@@ -98,36 +101,39 @@ class SpeechService:
         POST to Sarvam TTS (bulbul:v3) for natural Hindi speech.
         Requests 8kHz output directly to skip resampling.
         Returns raw PCM bytes (8kHz, 16-bit mono).
+        Retries once on 429 (rate limit) with a 1s back-off.
         """
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                response = await client.post(
-                    SARVAM_TTS_URL,
-                    headers={
-                        "api-subscription-key": self._sarvam_key,
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "text": text,
-                        "target_language_code": self._tts_lang,
-                        "speaker": self._tts_speaker,
-                        "model": "bulbul:v3",
-                        "speech_sample_rate": 8000,
-                        "pace": 1.0,
-                    },
-                )
+        payload = {
+            "text": text,
+            "target_language_code": self._tts_lang,
+            "speaker": self._tts_speaker,
+            "model": "bulbul:v3",
+            "speech_sample_rate": 8000,
+            "pace": 1.0,
+        }
+        headers = {
+            "api-subscription-key": self._sarvam_key,
+            "Content-Type": "application/json",
+        }
+        for attempt in range(2):
+            try:
+                response = await self._http.post(SARVAM_TTS_URL, headers=headers, json=payload)
+                if response.status_code == 429:
+                    print(f"[TTS] 429 rate limit — waiting 1s (attempt {attempt + 1})")
+                    await asyncio.sleep(1.0)
+                    continue
                 response.raise_for_status()
                 audios = response.json().get("audios", [])
                 if not audios:
                     return b""
-
                 # Response is base64-encoded WAV — decode and extract raw PCM
                 wav_bytes = base64.b64decode(audios[0])
                 return self._extract_pcm_from_wav(wav_bytes)
-
-        except Exception as e:
-            print(f"[TTS Error] {e}")
-            return b""
+            except Exception as e:
+                print(f"[TTS Error] {e}")
+                return b""
+        print("[TTS Error] Failed after 2 attempts (429)")
+        return b""
 
     # ------------------------------------------------------------------
     # Audio format helpers

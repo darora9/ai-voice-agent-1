@@ -2,11 +2,14 @@
 AI Voice Agent - Twilio bidirectional media stream handler.
 
 Architecture: two concurrent tasks per call
-  1. _twilio_loop   : read Twilio WS -> forward mulaw to Deepgram SDK
+  1. _twilio_loop   : read Twilio WS -> convert mulaw->PCM16k -> push to Azure PushAudioInputStream
   2. _pipeline_loop : asyncio.Queue -> ConversationManager -> TTS -> Twilio
 
-Deepgram SDK fires async callbacks which put transcripts in the queue.
-put_nowait() is used (not create_task) — safe from any asyncio context.
+Azure Speech SDK fires recognized callbacks from SDK threads.
+loop.call_soon_threadsafe(queue.put_nowait, ...) is used — the only safe cross-thread dispatch.
+
+STT: Azure Cognitive Services Speech — hi-IN / en-IN / pa-IN auto-detect, 300ms endpointing
+TTS: Sarvam bulbul:v3 (persistent HTTP client in SpeechService)
 """
 
 import asyncio
@@ -14,35 +17,43 @@ import audioop
 import base64
 import json
 import os
+import re
 import time
 
 from fastapi import WebSocket
 
 TTS_CHUNK = 1600  # ~200ms of mulaw @ 8kHz per send
 
+# Matches any Hindi (Devanagari), Punjabi (Gurmukhi), or Latin letter
+_HAS_LETTER = re.compile(r'[a-zA-Z\u0900-\u097F\u0A00-\u0A7F]')
+
 
 class StreamSession:
     def __init__(self, speech_service):
-        self.speech        = speech_service
-        self.call_sid      = None
-        self.stream_sid    = None
-        self.conversation  = None
-        self._ws           = None
-        self._dg_conn      = None       # Deepgram SDK live connection
-        self._muted_until  = 0.0
-        self._processing   = False
-        self._transcript_q = asyncio.Queue()
-        self._filler_mulaw: bytes = b""  # pre-cached "ठीक है जी" for instant playback
+        self.speech         = speech_service
+        self.call_sid       = None
+        self.stream_sid     = None
+        self.conversation   = None
+        self._ws            = None
+        self._push_stream   = None   # Azure PushAudioInputStream
+        self._recognizer    = None   # Azure SpeechRecognizer
+        self._loop          = None   # asyncio event loop — needed for thread-safe callbacks
+        self._ratecv_state  = None   # stateful upsampler: 8kHz→16kHz (avoids chunk-boundary clicks)
+        self._muted_until   = 0.0
+        self._processing    = False
+        self._transcript_q  = asyncio.Queue()
+        self._filler_mulaw: bytes = b""  # pre-cached "ठीक है जी"
 
     # ------------------------------------------------------------------
     # Entry point
     # ------------------------------------------------------------------
 
     async def run(self, websocket: WebSocket):
-        self._ws = websocket
+        self._ws   = websocket
+        self._loop = asyncio.get_event_loop()
         await websocket.accept()
 
-        # Twilio sends "connected" before "start" — skip until we get "start"
+        # Twilio sends "connected" before "start" — discard until "start"
         msg = None
         try:
             async for raw in websocket.iter_text():
@@ -50,7 +61,7 @@ class StreamSession:
                 if candidate.get("event") == "start":
                     msg = candidate
                     break
-                print(f"[Stream] Pre-start: {candidate.get('event')}")
+                print(f"[Stream] Pre-start event: {candidate.get('event')}")
         except Exception as e:
             print(f"[Stream] Error waiting for start: {e}")
             return
@@ -71,7 +82,7 @@ class StreamSession:
         finally:
             t_pl.cancel()
             await asyncio.gather(t_pl, return_exceptions=True)
-            await self._close_deepgram()
+            await self._close_azure()
 
     # ------------------------------------------------------------------
     # Start
@@ -85,19 +96,20 @@ class StreamSession:
         self.conversation = ConversationManager(caller_phone=caller_number)
         print(f"[Call] {self.call_sid} from {caller_number}")
 
-        await self._open_deepgram()
+        await self._open_azure()
 
-        # Pre-synthesize filler in background so it's ready before first user turn
-        asyncio.create_task(self._cache_filler(), name="cache_filler")
+        # Cache filler FIRST — avoids Sarvam 429 race with greeting TTS.
+        # Both calls hit Sarvam sequentially, not concurrently.
+        await self._cache_filler()
 
-        # Hold mute until greeting finishes; mark event releases it precisely
+        # Hold mute until greeting finishes; mark event releases it precisely.
         self._muted_until = time.monotonic() + 30.0
         greeting = self.conversation.get_greeting()
         print(f"[Agent] {greeting}")
         asyncio.create_task(self._speak(greeting), name="speak_greeting")
 
     # ------------------------------------------------------------------
-    # Twilio loop: forward audio to Deepgram; handle mark/stop
+    # Twilio loop: push inbound audio to Azure; handle mark/stop
     # ------------------------------------------------------------------
 
     async def _twilio_loop(self, websocket: WebSocket):
@@ -106,20 +118,23 @@ class StreamSession:
             event = msg.get("event")
 
             if event == "media":
-                # Always forward — never drop during mute.
-                # Dropping starves Deepgram WS -> it dies -> no more transcripts.
-                if self._dg_conn and msg["media"].get("track", "inbound") == "inbound":
-                    chunk = base64.b64decode(msg["media"]["payload"])
+                if self._push_stream and msg["media"].get("track", "inbound") == "inbound":
+                    mulaw = base64.b64decode(msg["media"]["payload"])
+                    # mulaw 8kHz → PCM 16-bit 8kHz → upsample to 16kHz (Azure requires 16kHz)
+                    pcm_8k = audioop.ulaw2lin(mulaw, 2)
+                    pcm_16k, self._ratecv_state = audioop.ratecv(
+                        pcm_8k, 2, 1, 8000, 16000, self._ratecv_state
+                    )
                     try:
-                        await self._dg_conn.send(chunk)
+                        self._push_stream.write(pcm_16k)
                     except Exception:
                         pass
 
             elif event == "mark":
-                # Twilio echoes this back exactly when audio finishes on the phone.
+                # Twilio echoes this back exactly when audio finishes playing on the phone.
                 if msg.get("mark", {}).get("name") == "tts_done":
                     self._muted_until = 0.0
-                    print("[Audio] Playback complete - mute released")
+                    print("[Audio] Playback complete — mute released")
 
             elif event == "stop":
                 print(f"[Call] Stream stopped: {self.call_sid}")
@@ -141,8 +156,8 @@ class StreamSession:
         self._processing = True
         try:
             from agent.conversation import State
-            # Run LLM processing and filler playback simultaneously.
-            # Filler plays instantly (~0.3s) while the LLM thinks — fills the silence.
+            # LLM call and filler playback run concurrently.
+            # Filler ("ठीक है जी") plays in ~300ms while LLM thinks — fills the silence gap.
             response_task = asyncio.create_task(self.conversation.process_turn(transcript))
             await self._play_filler()
             response = await response_task
@@ -166,80 +181,110 @@ class StreamSession:
             self._processing = False
 
     # ------------------------------------------------------------------
-    # Deepgram SDK connection
+    # Azure Speech SDK connection
     # ------------------------------------------------------------------
 
-    async def _open_deepgram(self):
-        api_key = os.environ.get("DEEPGRAM_API_KEY", "")
-        if not api_key:
-            print("[Deepgram] ERROR: DEEPGRAM_API_KEY not set")
+    async def _open_azure(self):
+        key    = os.environ.get("AZURE_SPEECH_KEY", "")
+        region = os.environ.get("AZURE_SPEECH_REGION", "")
+        if not key or not region:
+            print("[Azure] ERROR: AZURE_SPEECH_KEY or AZURE_SPEECH_REGION not set")
             return
         try:
-            from deepgram import DeepgramClient, LiveOptions, LiveTranscriptionEvents
+            import azure.cognitiveservices.speech as speechsdk
 
-            dg = DeepgramClient(api_key)
-            self._dg_conn = dg.listen.asyncwebsocket.v("1")
+            speech_config = speechsdk.SpeechConfig(subscription=key, region=region)
 
-            # Transcript callback — called by SDK when speech_final fires.
-            # put_nowait() is safe from any async context; no create_task needed.
-            async def _on_transcript(self_inner, result, **kwargs):
+            # 300ms silence triggers end-of-utterance (vs Deepgram's 500ms — 200ms faster)
+            speech_config.set_property(
+                speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, "300"
+            )
+
+            # Auto-detect: Hindi / English / Punjabi in a single stream
+            auto_detect = speechsdk.languageconfig.AutoDetectSourceLanguageConfig(
+                languages=["hi-IN", "en-IN", "pa-IN"]
+            )
+
+            # PCM 16kHz 16-bit mono — what we push after upsampling
+            fmt = speechsdk.audio.AudioStreamFormat(
+                samples_per_second=16000, bits_per_sample=16, channels=1
+            )
+            self._push_stream = speechsdk.audio.PushAudioInputStream(stream_format=fmt)
+            audio_config = speechsdk.audio.AudioConfig(stream=self._push_stream)
+
+            self._recognizer = speechsdk.SpeechRecognizer(
+                speech_config=speech_config,
+                audio_config=audio_config,
+                auto_detect_source_language_config=auto_detect,
+            )
+
+            loop = self._loop
+
+            def _on_recognized(evt):
+                """Called from Azure SDK thread — dispatch to asyncio via call_soon_threadsafe."""
                 try:
-                    alt        = result.channel.alternatives[0]
-                    transcript = alt.transcript.strip()
-                    if not result.speech_final or not transcript:
+                    transcript = evt.result.text.strip()
+                    if not transcript or not _HAS_LETTER.search(transcript):
                         return
                     now = time.monotonic()
                     if now < self._muted_until:
                         print(f"[STT] Muted ({self._muted_until - now:.1f}s left): {transcript}")
                         return
                     if self._processing:
-                        print(f"[STT] Busy: {transcript}")
-                        return
-                    import re as _re
-                    if not _re.search(r'[a-zA-Z\u0900-\u097F]', transcript):
+                        print(f"[STT] Busy (discarded): {transcript}")
                         return
                     print(f"[STT] {transcript}")
-                    self._transcript_q.put_nowait(transcript)
+                    loop.call_soon_threadsafe(self._transcript_q.put_nowait, transcript)
                 except Exception as e:
-                    print(f"[Deepgram transcript error] {e}")
+                    print(f"[Azure transcript error] {e}")
 
-            self._dg_conn.on(LiveTranscriptionEvents.Transcript, _on_transcript)
+            def _on_canceled(evt):
+                details = evt.cancellation_details
+                print(f"[Azure] Canceled: {details.reason} — {details.error_details}")
 
-            from deepgram import LiveOptions
-            options = LiveOptions(
-                model="nova-2",
-                language="hi",
-                encoding="mulaw",
-                sample_rate=8000,
-                channels=1,
-                endpointing=500,
-                interim_results=False,
-                smart_format=False,
-                punctuate=False,
-            )
-            started = await self._dg_conn.start(options)
-            if started:
-                print("[Deepgram] Connected")
-            else:
-                print("[Deepgram] WARNING: start() returned False — check API key / network")
+            self._recognizer.recognized.connect(_on_recognized)
+            self._recognizer.canceled.connect(_on_canceled)
+            self._recognizer.start_continuous_recognition()
+            print("[Azure] STT connected — hi-IN / en-IN / pa-IN, 300ms endpoint")
+
         except Exception as e:
-            print(f"[Deepgram] Connection failed: {e}")
+            print(f"[Azure] Connection failed: {e}")
             import traceback; traceback.print_exc()
-            self._dg_conn = None
+            self._push_stream = None
+            self._recognizer  = None
+
+    async def _close_azure(self):
+        if self._recognizer:
+            try:
+                self._recognizer.stop_continuous_recognition()
+            except Exception:
+                pass
+            self._recognizer = None
+        if self._push_stream:
+            try:
+                self._push_stream.close()
+            except Exception:
+                pass
+            self._push_stream = None
+
+    # ------------------------------------------------------------------
+    # Filler audio
+    # ------------------------------------------------------------------
 
     async def _cache_filler(self):
-        """Synthesize filler phrase once and store as mulaw bytes."""
+        """Synthesize filler phrase once at call start and store as mulaw bytes."""
         pcm = await self.speech.synthesize("ठीक है जी")
         if pcm:
             self._filler_mulaw = audioop.lin2ulaw(pcm, 2)
             print("[Filler] Pre-cached")
+        else:
+            print("[Filler] WARNING: synthesis failed — filler will be silent")
 
     async def _play_filler(self):
-        """Send pre-cached filler audio to Twilio. Mute input during playback."""
+        """Send pre-cached filler audio to Twilio. No-op if not cached yet."""
         if not self._filler_mulaw or not self.stream_sid:
             return
         filler_duration = len(self._filler_mulaw) / 8000.0
-        # Extend mute so no stray transcript can slip in during filler playback
         self._muted_until = max(self._muted_until, time.monotonic() + filler_duration + 0.3)
         for i in range(0, len(self._filler_mulaw), TTS_CHUNK):
             try:
@@ -250,14 +295,6 @@ class StreamSession:
                 }))
             except Exception:
                 return
-
-    async def _close_deepgram(self):
-        if self._dg_conn:
-            try:
-                await self._dg_conn.finish()
-            except Exception:
-                pass
-            self._dg_conn = None
 
     # ------------------------------------------------------------------
     # TTS -> Twilio audio
@@ -285,7 +322,7 @@ class StreamSession:
                 self._muted_until = 0.0
                 return 0.0
 
-        # Mark event — Twilio echoes it back when audio finishes on the phone
+        # Mark event — Twilio echoes it back exactly when audio finishes on the phone
         try:
             await self._ws.send_text(json.dumps({
                 "event":     "mark",

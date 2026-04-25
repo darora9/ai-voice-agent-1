@@ -154,7 +154,7 @@ GREETING = (
 class ConversationManager:
     def __init__(self, caller_phone: str = ""):
         self.client = AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
-        self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+        self.model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
         self.calendar = CalendarService()
 
         self.state = State.WAIT_NAME
