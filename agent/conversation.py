@@ -210,46 +210,104 @@ class ConversationManager:
 
     async def _handle_name_confirm(self, text: str) -> str:
         tl = text.lower().strip()
-        # Negation — re-ask for name
-        _deny = ("no", "nahi", "nahin", "नहीं", "nahi", "galat", "गलत", "wrong", "nope",
+        _deny = ("no", "nahi", "nahin", "नहीं", "galat", "गलत", "wrong", "nope",
                  "ਨਹੀਂ", "ਗਲਤ", "ਨਹੀ")
         if any(d in tl for d in _deny):
+            # May have corrected name inline: "नहीं, मेरा नाम Raju है"
+            corrected = await self._extract_name(text)
+            if corrected and corrected.lower() != self.patient_name.lower():
+                self.patient_name = corrected
+                self.state = State.WAIT_NAME_CONFIRM
+                return f"{corrected} — क्या मैं आपका नाम सही ले रही हूँ?"
             self.patient_name = ""
             self.state = State.WAIT_NAME
             return "कृपया अपना सही नाम बताएं।"
-        # Affirmation or anything else (repeating name, etc.) — accept
-        _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi", "सही", "correct", "theek", "ठीक",
-                   "ਹਾਂ", "ਹਾਂਜੀ", "ਜੀ", "ਸਹੀ", "ਠੀਕ", "ਬਿਲਕੁਲ")
-        if any(a in tl for a in _affirm):
+
+        _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi",
+                   "सही", "correct", "theek", "ठीक", "ਹਾਂ", "ਹਾਂਜੀ", "ਜੀ", "ਸਹੀ", "ਠੀਕ", "ਬਿਲਕੁਲ")
+        is_affirm = any(a in tl for a in _affirm)
+
+        # If user also mentioned date/time (e.g. "हाँ, kal 4 baje"), capture it
+        _dt_hints = ("kal", "aaj", "parso", "कल", "आज", "परसों", "tomorrow", "monday",
+                     "tuesday", "wednesday", "thursday", "friday", "saturday", "baje",
+                     "बजे", "subah", "shaam", "सुबह", "शाम", "tarikh", "तारीख़", "din", "दिन")
+        if is_affirm and any(h in tl for h in _dt_hints):
+            dt = await self._extract_datetime(text)
+            d, t = dt.get("date"), dt.get("time")
+            if d or t:
+                if d: self.date = d
+                if t: self.time = t
+                self.state = State.WAIT_DATETIME
+                if d and t:
+                    if self._is_past_date(d):
+                        return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
+                    return await self._check_slot()
+                elif d:
+                    self.state = State.WAIT_TIME
+                    return _ask_time(d)
+                else:
+                    self.state = State.WAIT_DATE
+                    return _ask_date(t)
+
+        if is_affirm:
             self.state = State.WAIT_CITY
             return "आप किस शहर से हैं?"
-        # Caller may have corrected the name directly (e.g. "Gaganjot")
+
+        # Caller may have corrected the name directly
         corrected = await self._extract_name(text)
         if corrected and corrected.lower() != self.patient_name.lower():
             self.patient_name = corrected
             self.state = State.WAIT_NAME_CONFIRM
             return f"{corrected} — क्या मैं आपका नाम सही ले रही हूँ?"
+
         # Treat anything else as confirmation
         self.state = State.WAIT_CITY
         return "आप किस शहर से हैं?"
 
     async def _handle_city(self, text: str) -> str:
-        # Ignore filler / affirmatives that aren't city names
         _filler = ("theek", "thik", "okay", "ok", "haan", "ji", "ha ", "ठीक", "हाँ", "जी", "हां")
         tl = text.lower().strip()
         is_filler = not tl or len(tl) <= 2 or any(tl.startswith(f) for f in _filler)
 
         city = None if is_filler else await self._extract_city(text)
 
-        if not city:
-            if not self._city_retried:
-                self._city_retried = True
-                return "शहर समझ नहीं आया। कृपया शहर का नाम बताएं, जैसे 'Patiala' या 'Ludhiana'।"
-            # Second failure — skip city, don't block flow
+        if city:
+            self.patient_city = city
             self.state = State.WAIT_DATETIME
             return _greeting_with_hours(self.patient_name)
 
-        self.patient_city = city
+        # No city — check if patient gave date/time instead (skipped city question)
+        _dt_hints = ("kal", "aaj", "parso", "कल", "आज", "परसों", "tomorrow", "monday",
+                     "tuesday", "wednesday", "thursday", "friday", "saturday", "baje",
+                     "बजे", "subah", "shaam", "सुबह", "शाम", "tarikh", "तारीख़")
+        if not is_filler and any(h in tl for h in _dt_hints):
+            dt = await self._extract_datetime(text)
+            d, t = dt.get("date"), dt.get("time")
+            if d or t:
+                if d: self.date = d
+                if t: self.time = t
+                self.state = State.WAIT_DATETIME
+                if d and t:
+                    if self._is_past_date(d):
+                        return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
+                    return await self._check_slot()
+                elif d:
+                    if self._is_past_date(d):
+                        return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
+                    import datetime as _dt2
+                    if _dt2.date.fromisoformat(d).weekday() == 6:
+                        self.date = ""
+                        return "इतवार को clinic बंद रहती है। कोई और दिन चुनें, Monday से Saturday।"
+                    self.state = State.WAIT_TIME
+                    return _ask_time(d)
+                else:
+                    self.state = State.WAIT_DATE
+                    return _ask_date(t)
+
+        if not self._city_retried:
+            self._city_retried = True
+            return "शहर समझ नहीं आया। कृपया शहर का नाम बताएं, जैसे 'Patiala' या 'Ludhiana'।"
+        # Second failure — skip city, don't block flow
         self.state = State.WAIT_DATETIME
         return _greeting_with_hours(self.patient_name)
 
@@ -446,8 +504,10 @@ class ConversationManager:
         text_lower = text.lower().strip()
         # Matches both romanized AND Devanagari affirmatives/negatives
         affirm = bool(_re.search(
-            r"(haan|hnji|ji\b|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|zaroor|sahi|done"
-            r"|हाँ|हां|हा\b|जी|हजी|हन्जी|बिल्कुल|ठीक|करो|ज़रूर|जरूर|सही|दीजिए|dijiye|kijiye|कीजिए"
+            r"(haan|hnji|ji\b|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|kar\s*de"
+            r"|karde|kardo|zaroor|sahi|done|book\b|dijiye|kijiye"
+            r"|हाँ|हां|हा\b|जी|हजी|हन्जी|बिल्कुल|ठीक|करो|कर\s*दो|करदो|कर\s*दे|करदे|कर\s*दीजिए"
+            r"|ज़रूर|जरूर|सही|दीजिए|कीजिए|बुक"
             r"|ਹਾਂ|ਹਾਂਜੀ|ਜੀ|ਸਹੀ|ਠੀਕ|ਬਿਲਕੁਲ|ਕਰੋ|ਜ਼ਰੂਰ)",
             text_lower
         ))
