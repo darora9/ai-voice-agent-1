@@ -187,23 +187,33 @@ class ConversationManager:
         elif self.state == State.WAIT_CITY:
             return await self._handle_city(user_input)
         elif self.state == State.WAIT_DATETIME:
-            # Check if it's a slot availability question before normal date/time handling
+            # "next available / agla slot" check first (most specific)
+            if self._is_next_slot_query(user_input):
+                return await self._handle_next_slot_query(user_input)
             if await self._is_slot_query(user_input):
                 return await self._handle_slot_query(user_input)
             return await self._handle_datetime(user_input)
         elif self.state == State.WAIT_DATE:
+            if self._is_next_slot_query(user_input):
+                return await self._handle_next_slot_query(user_input)
             if await self._is_slot_query(user_input):
                 return await self._handle_slot_query(user_input)
             return await self._handle_date_only(user_input)
         elif self.state == State.WAIT_TIME:
+            if self._is_next_slot_query(user_input):
+                return await self._handle_next_slot_query(user_input)
             if await self._is_slot_query(user_input):
                 return await self._handle_slot_query(user_input)
             return await self._handle_time_only(user_input)
         elif self.state == State.WAIT_CONFIRM:
+            if self._is_next_slot_query(user_input):
+                return await self._handle_next_slot_query(user_input)
             if await self._is_slot_query(user_input):
                 return await self._handle_slot_query(user_input)
             return await self._handle_confirm(user_input)
         elif self.state == State.WAIT_SLOT_CHOICE:
+            if self._is_next_slot_query(user_input):
+                return await self._handle_next_slot_query(user_input)
             # Also handle availability questions during slot choice
             if await self._is_slot_query(user_input):
                 return await self._handle_slot_query(user_input)
@@ -844,6 +854,64 @@ class ConversationManager:
                     pass
         return None
 
+
+    def _is_next_slot_query(self, text: str) -> bool:
+        """
+        Detect queries asking for the next/earliest available slot overall,
+        regardless of date — e.g. "jo bhi agla slot hai", "sabse jaldi ka slot",
+        "book next available", "koi bhi slot de do".
+        """
+        t = text.lower()
+        keywords = [
+            # Romanized / English
+            "agla slot", "agla available", "agli slot", "next available", "next slot",
+            "first available", "earliest slot", "earliest available",
+            "jaldi se jaldi", "jaldse jaldi", "jaldi wala slot", "jaldi ka slot",
+            "sabse jaldi", "sabse paas wala slot", "sabse pahle",
+            "jo bhi available", "jo bhi avb", "jo vi available", "jo vi slot",
+            "jo bhi slot", "koi bhi slot dedo", "koi bhi slot do",
+            "any slot", "any available slot", "kab se slot hai", "kab slot milega",
+            "abhi ka slot", "abhi available", "abhi slot",
+            # Hindi (Devanagari)
+            "अगला slot", "अगला available", "अगली slot",
+            "जो भी available", "जो भी slot", "कोई भी slot दो", "कोई भी slot दे दो",
+            "सबसे जल्दी", "सबसे पास", "जल्दी वाला slot",
+            "पहला available", "पहला slot",
+            # Punjabi (Gurmukhi)
+            "ਅਗਲਾ slot", "ਜੋ ਵੀ available", "ਕੋਈ ਵੀ slot",
+            "ਜਲਦੀ ਵਾਲਾ slot", "ਸਭ ਤੋਂ ਜਲਦੀ",
+        ]
+        return any(kw in t for kw in keywords)
+
+    async def _handle_next_slot_query(self, text: str) -> str:
+        """Find the overall earliest available slot and offer/confirm it."""
+        ns = self.calendar.get_next_available_slot()
+        if not ns:
+            return "अगले 30 दिनों में कोई slot available नहीं है। कृपया बाद में call करें।"
+
+        self.date = ns["date"]
+        self.time = ns["time"]
+        self.state = State.WAIT_CONFIRM
+
+        # Detect booking intent: "book kar do", "fix kar do", etc.
+        t = text.lower()
+        book_intent = any(kw in t for kw in (
+            "book", "kar do", "kardo", "kar de", "karde", "krdo", "krde",
+            "fix", "confirm", "laga do", "laga de",
+            "बुक", "कर दो", "करदो", "कर दे", "करदे", "लगा दो", "लगा दे",
+            "ਬੁੱਕ", "ਕਰ ਦੋ", "ਕਰਦੋ", "ਲਾ ਦੇ",
+        ))
+
+        human = _human_date(ns["date"])
+        if book_intent:
+            return (
+                f"अगला available slot {human} को {ns['time']} बजे है। "
+                "Confirm करूँ?"
+            )
+        return (
+            f"अगला available slot {human} को {ns['time']} बजे है। "
+            "क्या इसे book करूँ?"
+        )
 
     async def _is_slot_query(self, text: str) -> bool:
         """Detect if the caller is asking about slot availability rather than booking."""
