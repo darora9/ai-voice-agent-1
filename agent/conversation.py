@@ -118,10 +118,14 @@ def _slot_taken(date: str, time: str, suggestions: list) -> str:
         f"इन slots में से चुनें: {slots} बजे।"
     )
 
-def _no_slots_on_date(date: str, is_today: bool = False) -> str:
+def _no_slots_on_date(date: str, is_today: bool = False, next_slot: dict | None = None) -> str:
+    next_hint = (
+        f" अगला available slot: {_human_date(next_slot['date'])} {next_slot['time']} बजे।"
+        if next_slot else ""
+    )
     if is_today:
-        return "आज कोई slot नहीं है। कोई और दिन बताएं।"
-    return f"{_human_date(date)} को कोई slot नहीं है। कोई और तारीख़ बताएं।"
+        return f"आज कोई slot नहीं है।{next_hint} कोई और दिन बताएं।"
+    return f"{_human_date(date)} को कोई slot नहीं है।{next_hint} कोई और तारीख़ बताएं।"
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
     import datetime as _dt
@@ -714,24 +718,31 @@ class ConversationManager:
                     if next_slot:
                         return f"{requested} बजे का समय निकल चुका है। अगला available slot {next_slot} बजे है — confirm करूँ?"
                     else:
+                        saved = self.date
                         self.date = ""
                         self.state = State.WAIT_DATETIME
-                        return "आज के बाकी सारे slots निकल चुके हैं। कृपया कोई और दिन बताएं।"
+                        ns = self.calendar.get_next_available_after(saved)
+                        ns_hint = f" अगला slot: {_human_date(ns['date'])} {ns['time']} बजे।" if ns else ""
+                        return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
                 else:
+                    saved = self.date
                     self.date = ""
                     self.time = ""
                     self.state = State.WAIT_DATETIME
-                    return "आज के बाकी सारे slots निकल चुके हैं। कृपया कोई और दिन बताएं।"
+                    ns = self.calendar.get_next_available_after(saved)
+                    ns_hint = f" अगला slot: {_human_date(ns['date'])} {ns['time']} बजे।" if ns else ""
+                    return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
 
         if not slots:
             import datetime as _dt
             IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
             saved_date = self.date
             is_today = saved_date == _dt.datetime.now(tz=IST).date().isoformat()
+            next_avail = self.calendar.get_next_available_after(saved_date)
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
-            return _no_slots_on_date(saved_date, is_today=is_today)
+            return _no_slots_on_date(saved_date, is_today=is_today, next_slot=next_avail)
 
         matched = self._match_slot(self.time)
         if matched and self._is_past_slot(self.date, matched):
@@ -881,9 +892,10 @@ class ConversationManager:
             import datetime as _dt
             IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
             is_today = query_date == _dt.datetime.now(tz=IST).date().isoformat()
+            next_avail = self.calendar.get_next_available_after(query_date)
             self.date = ""
             self.state = State.WAIT_DATETIME
-            return _no_slots_on_date(query_date, is_today=is_today)
+            return _no_slots_on_date(query_date, is_today=is_today, next_slot=next_avail)
 
         if query_time:
             # Apply PM flip only when no explicit qualifier (subah/shaam/raat)
@@ -905,7 +917,11 @@ class ConversationManager:
                         self.time = ""
                         self.state = State.WAIT_SLOT_CHOICE
                         return f"{query_time} बजे का समय निकल चुका है। अगला available slot {next_slot} बजे है — confirm करूँ?"
-                return "आज के बाकी सारे slots निकल चुके हैं। कृपया कोई और दिन बताएं।"
+                ns = self.calendar.get_next_available_after(query_date)
+                ns_hint = f" अगला slot: {_human_date(ns['date'])} {ns['time']} बजे।" if ns else ""
+                self.date = ""
+                self.state = State.WAIT_DATETIME
+                return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
             # Caller asked about a specific time on that date
             if query_time in slots:
                 # Slot IS available — prime for confirmation

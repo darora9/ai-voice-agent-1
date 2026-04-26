@@ -194,6 +194,31 @@ class CalendarService:
                     return {"date": check_date.isoformat(), "time": s}
         return None
 
+    def get_next_available_after(self, from_date_str: str) -> dict | None:
+        """Return {date, time} of the earliest available slot strictly after from_date_str, or None."""
+        import datetime as _dt
+        IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        try:
+            start = _dt.date.fromisoformat(from_date_str) + _dt.timedelta(days=1)
+        except Exception:
+            start = _dt.datetime.now(tz=IST).date()
+        now_ist = _dt.datetime.now(tz=IST)
+        from datetime import datetime as _dtt
+        for day_offset in range(30):
+            check_date = start + _dt.timedelta(days=day_offset)
+            if check_date.weekday() == 6:  # skip Sunday
+                continue
+            slots = self.get_available_slots(check_date.isoformat())
+            if not slots or slots == "SUNDAY":
+                continue
+            for s in slots:
+                slot_dt = _dtt.strptime(
+                    f"{check_date.isoformat()} {s}", "%Y-%m-%d %H:%M"
+                ).replace(tzinfo=IST)
+                if slot_dt > now_ist:
+                    return {"date": check_date.isoformat(), "time": s}
+        return None
+
     def get_cancelled_since(self, sync_token: str | None) -> tuple[list[dict], str]:
         """
         Incremental sync using Google's syncToken.
