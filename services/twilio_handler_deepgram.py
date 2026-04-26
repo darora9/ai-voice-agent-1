@@ -162,9 +162,7 @@ class StreamSession:
         When silence follows speech, fires off _transcribe_and_queue as a task.
         """
         # During TTS playback: reset buffer so echo doesn't bleed into next utterance.
-        # Also block if an STT task is already in-flight — prevents duplicate transcriptions
-        # when two VAD clips fire from the same utterance before the first completes.
-        if time.monotonic() < self._muted_until or self._processing or self._stt_tasks:
+        if time.monotonic() < self._muted_until or self._processing:
             self._reset_vad()
             return
 
