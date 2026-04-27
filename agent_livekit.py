@@ -414,20 +414,19 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"[Greeting] {greeting!r}")
     await agent.say(greeting, allow_interruptions=False)
 
-    # Poll for DONE state, then disconnect after TTS generation + playout (~10s)
-    async def _watch_done():
-        while True:
-            await asyncio.sleep(0.5)
-            if conv.state == State.DONE:
-                await asyncio.sleep(10.0)
-                logger.info("[Call] Booking complete — disconnecting room")
-                try:
-                    await ctx.room.disconnect()
-                except Exception:
-                    pass
-                return
+    # Disconnect 2s after final audio plays out (not a blind fixed timer)
+    async def _disconnect_after_delay():
+        await asyncio.sleep(2.0)
+        logger.info("[Call] Booking complete — disconnecting room")
+        try:
+            await ctx.room.disconnect()
+        except Exception:
+            pass
 
-    asyncio.create_task(_watch_done())
+    @agent.on("agent_speech_committed")
+    def _on_speech_committed():
+        if conv.state == State.DONE:
+            asyncio.ensure_future(_disconnect_after_delay())
 
     call_ended = asyncio.Event()
 
