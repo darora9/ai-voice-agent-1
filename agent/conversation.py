@@ -505,7 +505,7 @@ class ConversationManager:
                         self.time = last
                         self.available_slots = slots
                         self.state = State.WAIT_CONFIRM
-                        return f"Clinic {time} बजे बंद हो जाती है। आखिरी slot {last} बजे है — confirm करूँ?"
+                        return f"Clinic {_fmt_time(time)} बजे बंद हो जाती है। आखिरी slot {_fmt_time(last)} बजे है — confirm करूँ?"
         except Exception:
             pass
         self.time = time
