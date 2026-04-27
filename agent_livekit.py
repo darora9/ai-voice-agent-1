@@ -414,7 +414,8 @@ async def entrypoint(ctx: JobContext):
             await asyncio.sleep(0.5)
             if conv.state == State.DONE:
                 # Allow the final TTS audio to drain before disconnecting
-                await asyncio.sleep(3.0)
+                # TTS generation (~3s) + playout (~5s) = needs ~8s minimum
+                await asyncio.sleep(12.0)
                 logger.info("[Call] Booking complete — disconnecting room")
                 try:
                     await ctx.room.disconnect()
