@@ -419,7 +419,7 @@ async def entrypoint(ctx: JobContext):
         while True:
             await asyncio.sleep(0.5)
             if conv.state == State.DONE:
-                await asyncio.sleep(10.0)
+                await asyncio.sleep(15.0)
                 logger.info("[Call] Booking complete — disconnecting room")
                 try:
                     await ctx.room.disconnect()
