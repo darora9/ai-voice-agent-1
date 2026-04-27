@@ -43,7 +43,11 @@ class State(Enum):
 # ---------------------------------------------------------------------------
 
 def _fmt_time(time_24: str) -> str:
-    """Convert HH:MM (24h) to 12-hour for Hindi speech: '15:00' → '3', '17:30' → '5:30'"""
+    """Convert HH:MM (24h) to natural Hindi speech.
+    Before noon : 'सुबह 9' / 'सुबह 11:30'
+    At noon     : '12'
+    After noon  : '1' / '4:30'  (no शाम prefix)
+    """
     try:
         h, m = map(int, time_24.split(":"))
         h12 = h % 12 or 12
