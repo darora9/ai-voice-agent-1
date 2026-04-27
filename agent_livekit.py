@@ -48,7 +48,7 @@ from livekit.agents import (
 )
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.agents.types import APIConnectOptions, DEFAULT_API_CONNECT_OPTIONS
-from livekit.plugins import silero
+from livekit.plugins import silero, azure
 
 # livekit-agents 0.12.x removed stt.AudioBuffer — define locally
 AudioBuffer = list[rtc.AudioFrame]
@@ -78,6 +78,11 @@ logger = logging.getLogger("agent")
 _SARVAM_KEY   = os.environ["SARVAM_API_KEY"]
 _TTS_SPEAKER  = os.getenv("SARVAM_TTS_SPEAKER", "priya")
 _TTS_LANG     = os.getenv("SARVAM_LANGUAGE_CODE", "hi-IN")
+
+# Azure TTS config
+_AZURE_SPEECH_KEY    = os.getenv("AZURE_SPEECH_KEY", "")
+_AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "eastus")
+_AZURE_TTS_VOICE     = os.getenv("AZURE_TTS_VOICE", "hi-IN-SwaraNeural")
 
 # Shared HTTP client — keeps TLS connections alive across STT + TTS calls
 _http = httpx.AsyncClient(
@@ -396,11 +401,23 @@ async def entrypoint(ctx: JobContext):
 
     conv = ConversationManager(caller_phone=caller_number)
 
+    # Use Azure TTS if key is configured, otherwise fall back to Sarvam
+    if _AZURE_SPEECH_KEY:
+        _tts = azure.TTS(
+            speech_key=_AZURE_SPEECH_KEY,
+            speech_region=_AZURE_SPEECH_REGION,
+            voice=_AZURE_TTS_VOICE,
+        )
+        logger.info(f"[TTS] Using Azure ({_AZURE_TTS_VOICE})")
+    else:
+        _tts = SarvamTTS()
+        logger.info("[TTS] Using Sarvam (Azure key not set)")
+
     agent = VoicePipelineAgent(
         vad=silero.VAD.load(),
         stt=SarvamSTT(),
         llm=ConversationLLM(conv),
-        tts=SarvamTTS(),
+        tts=_tts,
         # 500 ms of silence = end of caller turn.
         # Lower = faster response; higher = fewer false cuts on Hindi pauses.
         min_endpointing_delay=0.3,
