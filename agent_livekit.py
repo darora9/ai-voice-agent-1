@@ -476,11 +476,7 @@ async def entrypoint(ctx: JobContext):
 
     # Use Azure TTS if key is configured, otherwise fall back to Sarvam
     if _AZURE_SPEECH_KEY:
-        _tts = azure.TTS(
-            speech_key=_AZURE_SPEECH_KEY,
-            speech_region=_AZURE_SPEECH_REGION,
-            voice=_AZURE_TTS_VOICE,
-        )
+        _tts = AzureTTS()
         logger.info(f"[TTS] Using Azure ({_AZURE_TTS_VOICE})")
     else:
         _tts = SarvamTTS()
