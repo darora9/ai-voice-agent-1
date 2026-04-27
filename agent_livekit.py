@@ -414,7 +414,7 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"[Greeting] {greeting!r}")
     await agent.say(greeting, allow_interruptions=False)
 
-    # Disconnect 2s after final audio plays out (not a blind fixed timer)
+    # Disconnect 2s after final audio plays out
     async def _disconnect_after_delay():
         await asyncio.sleep(2.0)
         logger.info("[Call] Booking complete — disconnecting room")
@@ -423,8 +423,8 @@ async def entrypoint(ctx: JobContext):
         except Exception:
             pass
 
-    @agent.on("agent_speech_committed")
-    def _on_speech_committed():
+    @agent.on("agent_stopped_speaking")
+    def _on_agent_stopped_speaking():
         if conv.state == State.DONE:
             asyncio.ensure_future(_disconnect_after_delay())
 
