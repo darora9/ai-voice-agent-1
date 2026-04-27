@@ -322,7 +322,6 @@ class ConversationLLM(llm.LLM):
         return ConvStream(
             llm=self,
             chat_ctx=chat_ctx,
-            tools=tools or [],
             conn_options=conn_options,
             transcript=transcript,
             conv=self._conv,
@@ -335,12 +334,11 @@ class ConvStream(llm.LLMStream):
         *,
         llm: ConversationLLM,
         chat_ctx: llm.ChatContext,
-        tools: list,
         conn_options: APIConnectOptions,
         transcript: str,
         conv: ConversationManager,
     ):
-        super().__init__(llm=llm, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options)
+        super().__init__(llm=llm, chat_ctx=chat_ctx, fnc_ctx=None, conn_options=conn_options)
         self._transcript = transcript
         self._conv       = conv
 
