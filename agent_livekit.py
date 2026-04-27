@@ -88,6 +88,7 @@ _AZURE_TTS_VOICE     = os.getenv("AZURE_TTS_VOICE", "hi-IN-SwaraNeural")
 _http = httpx.AsyncClient(
     timeout=15,
     limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+    keepalive_expiry=30.0,
 )
 
 
@@ -232,7 +233,7 @@ class AzureTTSStream(tts.ChunkedStream):
     async def _run(self, output_emitter=None) -> None:
         ssml = (
             f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="hi-IN">'
-            f'<voice name="{_AZURE_TTS_VOICE}">{self._input_text}</voice>'
+            f'<voice name="{_AZURE_TTS_VOICE}"><prosody rate="+15%">{self._input_text}</prosody></voice>'
             f'</speak>'
         )
         endpoint = f"https://{_AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
@@ -310,7 +311,7 @@ class SarvamTTSStream(tts.ChunkedStream):
             "speaker":              _TTS_SPEAKER,
             "model":                "bulbul:v3",
             "speech_sample_rate":   8000,
-            "pace":                 1.0,
+            "pace":                 1.15,
         }
         headers = {
             "api-subscription-key": _SARVAM_KEY,

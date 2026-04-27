@@ -42,6 +42,17 @@ class State(Enum):
 # Fixed Hindi response templates — no LLM variation, always consistent
 # ---------------------------------------------------------------------------
 
+def _fmt_time(time_24: str) -> str:
+    """Convert HH:MM (24h) to 12-hour for Hindi speech: '15:00' → '3', '17:30' → '5:30'"""
+    try:
+        h, m = map(int, time_24.split(":"))
+        h12 = h % 12 or 12
+        if m == 0:
+            return str(h12)
+        return f"{h12}:{m:02d}"
+    except Exception:
+        return time_24
+
 def _human_date(date_iso: str) -> str:
     """Convert YYYY-MM-DD to Hindi human-readable: 'सोमवार, 27 April'"""
     import datetime as _dt
@@ -65,10 +76,10 @@ def _ask_time(date: str) -> str:
     return f"{_human_date(date)} ठीक है। किस समय आना चाहेंगे?"
 
 def _ask_date(time: str) -> str:
-    return f"{time} बजे ठीक है। कौनसा दिन आना चाहेंगे?"
+    return f"{_fmt_time(time)} बजे ठीक है। कौनसा दिन आना चाहेंगे?"
 
 def _slot_available_confirm(name: str, date: str, time: str) -> str:
-    return f"{name} जी, {_human_date(date)} को {time} बजे slot available है। Confirm करूँ?"
+    return f"{name} जी, {_human_date(date)} को {_fmt_time(time)} बजे slot available है। Confirm करूँ?"
 
 def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | None]:
     """Return (slot_before, slot_after) closest to requested time from available list."""
@@ -106,21 +117,22 @@ def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | No
         parts.append(after)
     nearby_str = " और ".join(parts) if parts else None
     if nearby_str:
-        return f"{time} बजे slot नहीं है। पास में: {nearby_str} बजे। कौनसा ठीक रहेगा?"
-    return f"{time} बजे slot नहीं है। कोई और समय बताएं।"
+        nearby_str = " और ".join(_fmt_time(s) for s in parts)
+        return f"{_fmt_time(time)} बजे slot नहीं है। पास में: {nearby_str} बजे। कौनसा ठीक रहेगा?"
+    return f"{_fmt_time(time)} बजे slot नहीं है। कोई और समय बताएं।"
 
 
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
     # fallback — unused, kept for reference
     slots = ", ".join(suggestions)
     return (
-        f"माफ़ी चाहते हैं, {date} को {time} बजे का slot available नहीं है। "
-        f"इन slots में से चुनें: {slots} बजे।"
+        f"माफ़ी चाहते हैं, {date} को {_fmt_time(time)} बजे का slot available नहीं है। "
+        f"इन slots में से चुनें: {', '.join(_fmt_time(s) for s in suggestions)} बजे।"
     )
 
 def _no_slots_on_date(date: str, is_today: bool = False, next_slot: dict | None = None) -> str:
     next_hint = (
-        f" अगला available slot: {_human_date(next_slot['date'])} {next_slot['time']} बजे।"
+        f" अगला available slot: {_human_date(next_slot['date'])} {_fmt_time(next_slot['time'])} बजे।"
         if next_slot else ""
     )
     if is_today:
@@ -138,7 +150,7 @@ def _booking_confirmed(name: str, date: str, time: str) -> str:
     except Exception:
         human_date = date
     return (
-        f"बिल्कुल! {name} जी, {human_date} को {time} बजे appointment confirm हो गई। धन्यवाद!"
+        f"बिल्कुल! {name} जी, {human_date} को {_fmt_time(time)} बजे appointment confirm हो गई। धन्यवाद!"
     )
 
 def _booking_failed() -> str:
