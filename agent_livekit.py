@@ -356,8 +356,13 @@ class ConvStream(llm.LLMStream):
         logger.info(f"[Agent] {response!r}")
         self._event_ch.send_nowait(
             llm.ChatChunk(
-                id=uuid4().hex,
-                delta=llm.ChoiceDelta(role="assistant", content=response),
+                request_id=uuid4().hex,
+                choices=[
+                    llm.Choice(
+                        delta=llm.ChoiceDelta(role="assistant", content=response),
+                        index=0,
+                    )
+                ],
             )
         )
 
