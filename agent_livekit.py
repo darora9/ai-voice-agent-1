@@ -106,28 +106,32 @@ def _start_health_server():
 
 class SarvamSTT(stt.STT):
     """
-    Wraps Sarvam Saaras v2 codemix REST API as a LiveKit STT plugin.
-    Handles Hindi + English + Punjabi natively; preserves Indian names & cities.
+    Wraps Sarvam Saaras v2/v3 codemix REST API as a LiveKit STT plugin.
     """
 
     def __init__(self):
-        super().__init__(streaming_supported=False)
+        super().__init__(
+            capabilities=stt.STTCapabilities(
+                streaming=False,
+                interim_results=False,
+            )
+        )
         self._http = httpx.AsyncClient(timeout=15)
 
-    async def recognize(
+    async def _recognize_impl(
         self,
         buffer: AudioBuffer,
         *,
-        language: str | None = None,
-        **kwargs,  # conn_options added in livekit-agents 0.12.x
+        language=None,
+        conn_options=None,
     ) -> stt.SpeechEvent:
         if not buffer:
             return _empty_speech_event()
 
         # Merge all frames into one raw PCM blob
-        sample_rate  = buffer[0].sample_rate
+        sample_rate = buffer[0].sample_rate
         num_channels = buffer[0].num_channels
-        raw_pcm      = b"".join(bytes(f.data) for f in buffer)
+        raw_pcm = b"".join(bytes(f.data) for f in buffer)
 
         # Flatten to mono
         if num_channels > 1:
@@ -151,8 +155,8 @@ class SarvamSTT(stt.STT):
                 headers={"api-subscription-key": _SARVAM_KEY},
                 files={"file": ("audio.wav", wav_buf.read(), "audio/wav")},
                 data={
-                    "model":         "saaras:v3",
-                    "mode":          "codemix",
+                    "model": "saaras:v3",
+                    "mode": "codemix",
                     "language_code": "unknown",
                 },
             )
@@ -168,7 +172,7 @@ class SarvamSTT(stt.STT):
             alternatives=[stt.SpeechData(language="hi-IN", text=text)],
         )
 
-    def stream(self, *, language: str | None = None, **kwargs) -> stt.SpeechStream:
+    def stream(self, *, language=None, conn_options=None):
         raise NotImplementedError("Sarvam STT does not support streaming")
 
 
