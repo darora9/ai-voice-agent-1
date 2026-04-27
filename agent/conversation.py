@@ -332,8 +332,10 @@ class ConversationManager:
 
         if not self._city_retried:
             self._city_retried = True
-            return "शहर समझ नहीं आया। कृपया शहर का नाम बताएं, जैसे 'Patiala' या 'Ludhiana'।"
-        # Second failure — skip city, don't block flow
+            # Skip city immediately on first failure — don't block flow
+            self.state = State.WAIT_DATETIME
+            return _greeting_with_hours(self.patient_name)
+        # Second failure — already skipped above, shouldn't reach here
         self.state = State.WAIT_DATETIME
         return _greeting_with_hours(self.patient_name)
 
