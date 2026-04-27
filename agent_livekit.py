@@ -29,6 +29,7 @@ import logging
 import os
 import sys
 import threading
+from uuid import uuid4
 import wave
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -211,7 +212,7 @@ class SarvamTTSStream(tts.ChunkedStream):
         super().__init__(tts=tts, input_text=input_text, **kwargs)  # forwards conn_options
         self._http = http
 
-    async def _run(self) -> None:
+    async def _run(self, output_emitter=None) -> None:
         payload = {
             "text":                 self._input_text,
             "target_language_code": _TTS_LANG,
@@ -249,13 +250,26 @@ class SarvamTTSStream(tts.ChunkedStream):
                     num_channels=1,
                     samples_per_channel=len(pcm) // 2,
                 )
-                self._event_ch.send_nowait(
-                    tts.SynthesizedAudio(
-                        request_id=self._request_id,
-                        segment_id=self._segment_id,
-                        frame=frame,
+
+                if output_emitter is not None:
+                    # New API (livekit-agents 0.12+)
+                    request_id = uuid4().hex
+                    output_emitter.initialize(
+                        request_id=request_id,
+                        sample_rate=8000,
+                        num_channels=1,
+                        mime_type="audio/pcm",
                     )
-                )
+                    output_emitter.push(frame)
+                    output_emitter.flush()
+                else:
+                    # Fallback for older SDK versions
+                    self._event_ch.send_nowait(
+                        tts.SynthesizedAudio(
+                            request_id=getattr(self, "_request_id", uuid4().hex),
+                            frame=frame,
+                        )
+                    )
                 return
 
             except Exception as e:
@@ -404,7 +418,18 @@ async def entrypoint(ctx: JobContext):
 
     asyncio.create_task(_watch_done())
 
-    await ctx.wait_for_disconnect()
+    call_ended = asyncio.Event()
+
+    @ctx.room.on("participant_disconnected")
+    def _on_participant_disconnected(p):
+        if p.identity == participant.identity:
+            call_ended.set()
+
+    @ctx.room.on("disconnected")
+    def _on_room_disconnected(*_):
+        call_ended.set()
+
+    await call_ended.wait()
 
 
 # ---------------------------------------------------------------------------
