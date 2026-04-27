@@ -48,6 +48,9 @@ from livekit.agents import (
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.plugins import silero
 
+# livekit-agents 0.12.x removed stt.AudioBuffer — define locally
+AudioBuffer = list[rtc.AudioFrame]
+
 from agent.conversation import ConversationManager, State
 from services.calendar_service import CalendarService
 from services.cancellation_monitor import run_monitor
@@ -113,9 +116,10 @@ class SarvamSTT(stt.STT):
 
     async def recognize(
         self,
-        buffer: stt.AudioBuffer,
+        buffer: AudioBuffer,
         *,
         language: str | None = None,
+        **kwargs,  # conn_options added in livekit-agents 0.12.x
     ) -> stt.SpeechEvent:
         if not buffer:
             return _empty_speech_event()
@@ -164,7 +168,7 @@ class SarvamSTT(stt.STT):
             alternatives=[stt.SpeechData(language="hi-IN", text=text)],
         )
 
-    def stream(self, *, language: str | None = None) -> stt.SpeechStream:
+    def stream(self, *, language: str | None = None, **kwargs) -> stt.SpeechStream:
         raise NotImplementedError("Sarvam STT does not support streaming")
 
 
@@ -193,13 +197,14 @@ class SarvamTTS(tts.TTS):
         )
         self._http = httpx.AsyncClient(timeout=15)
 
-    def synthesize(self, text: str) -> "SarvamTTSStream":
-        return SarvamTTSStream(tts=self, input_text=text, http=self._http)
+    def synthesize(self, text: str, **kwargs) -> "SarvamTTSStream":
+        # **kwargs forwards conn_options added in livekit-agents 0.12.x
+        return SarvamTTSStream(tts=self, input_text=text, http=self._http, **kwargs)
 
 
 class SarvamTTSStream(tts.ChunkedStream):
-    def __init__(self, *, tts: SarvamTTS, input_text: str, http: httpx.AsyncClient):
-        super().__init__(tts=tts, input_text=input_text)
+    def __init__(self, *, tts: SarvamTTS, input_text: str, http: httpx.AsyncClient, **kwargs):
+        super().__init__(tts=tts, input_text=input_text, **kwargs)  # forwards conn_options
         self._http = http
 
     async def _run(self) -> None:
@@ -280,6 +285,7 @@ class ConversationLLM(llm.LLM):
         *,
         chat_ctx: llm.ChatContext,
         fnc_ctx: llm.FunctionContext | None = None,
+        **kwargs,  # conn_options added in livekit-agents 0.12.x
     ) -> "ConvStream":
         # Extract the last user message — that is the STT transcript
         transcript = ""
@@ -292,6 +298,8 @@ class ConversationLLM(llm.LLM):
             chat_ctx=chat_ctx,
             transcript=transcript,
             conv=self._conv,
+            fnc_ctx=fnc_ctx,
+            **kwargs,
         )
 
 
@@ -301,10 +309,12 @@ class ConvStream(llm.LLMStream):
         *,
         llm: ConversationLLM,
         chat_ctx: llm.ChatContext,
+        fnc_ctx,
         transcript: str,
         conv: ConversationManager,
+        **kwargs,  # conn_options added in livekit-agents 0.12.x
     ):
-        super().__init__(llm=llm, chat_ctx=chat_ctx, fnc_ctx=None)
+        super().__init__(llm=llm, chat_ctx=chat_ctx, fnc_ctx=fnc_ctx, **kwargs)
         self._transcript = transcript
         self._conv       = conv
 
@@ -365,8 +375,6 @@ async def entrypoint(ctx: JobContext):
         # Lower = faster response; higher = fewer false cuts on Hindi pauses.
         min_endpointing_delay=0.5,
         allow_interruptions=True,
-        # Start TTS as soon as first sentence is ready (reduces latency)
-        preemptive_synthesis=True,
     )
 
     agent.start(ctx.room)
