@@ -47,6 +47,7 @@ from livekit.agents import (
     tts,
 )
 from livekit.agents.pipeline import VoicePipelineAgent
+from livekit.agents.types import APIConnectOptions, DEFAULT_API_CONNECT_OPTIONS
 from livekit.plugins import silero
 
 # livekit-agents 0.12.x removed stt.AudioBuffer — define locally
@@ -121,18 +122,24 @@ class SarvamSTT(stt.STT):
 
     async def _recognize_impl(
         self,
-        buffer: AudioBuffer,
+        buffer,
         *,
         language=None,
         conn_options=None,
     ) -> stt.SpeechEvent:
-        if not buffer:
+        # Handle both single AudioFrame (new API) and AudioBuffer/list (old API)
+        if isinstance(buffer, rtc.AudioFrame):
+            frames: list = [buffer]
+        else:
+            frames = list(buffer) if buffer else []
+
+        if not frames:
             return _empty_speech_event()
 
         # Merge all frames into one raw PCM blob
-        sample_rate = buffer[0].sample_rate
-        num_channels = buffer[0].num_channels
-        raw_pcm = b"".join(bytes(f.data) for f in buffer)
+        sample_rate = frames[0].sample_rate
+        num_channels = frames[0].num_channels
+        raw_pcm = b"".join(bytes(f.data) for f in frames)
 
         # Flatten to mono
         if num_channels > 1:
@@ -302,8 +309,9 @@ class ConversationLLM(llm.LLM):
         self,
         *,
         chat_ctx: llm.ChatContext,
-        fnc_ctx: llm.FunctionContext | None = None,
-        **kwargs,  # conn_options added in livekit-agents 0.12.x
+        tools=None,
+        conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS,
+        **kwargs,
     ) -> "ConvStream":
         # Extract the last user message — that is the STT transcript
         transcript = ""
@@ -314,10 +322,10 @@ class ConversationLLM(llm.LLM):
         return ConvStream(
             llm=self,
             chat_ctx=chat_ctx,
+            tools=tools or [],
+            conn_options=conn_options,
             transcript=transcript,
             conv=self._conv,
-            fnc_ctx=fnc_ctx,
-            **kwargs,
         )
 
 
@@ -327,12 +335,12 @@ class ConvStream(llm.LLMStream):
         *,
         llm: ConversationLLM,
         chat_ctx: llm.ChatContext,
-        fnc_ctx,
+        tools: list,
+        conn_options: APIConnectOptions,
         transcript: str,
         conv: ConversationManager,
-        **kwargs,  # conn_options added in livekit-agents 0.12.x
     ):
-        super().__init__(llm=llm, chat_ctx=chat_ctx, fnc_ctx=fnc_ctx, **kwargs)
+        super().__init__(llm=llm, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options)
         self._transcript = transcript
         self._conv       = conv
 
@@ -350,13 +358,8 @@ class ConvStream(llm.LLMStream):
         logger.info(f"[Agent] {response!r}")
         self._event_ch.send_nowait(
             llm.ChatChunk(
-                request_id=self._request_id,
-                choices=[
-                    llm.Choice(
-                        delta=llm.ChoiceDelta(role="assistant", content=response),
-                        index=0,
-                    )
-                ],
+                id=uuid4().hex,
+                delta=llm.ChoiceDelta(role="assistant", content=response),
             )
         )
 
