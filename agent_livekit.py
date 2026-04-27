@@ -22,6 +22,7 @@ Required env vars (add to Railway + .env):
 """
 
 import asyncio
+import audioop  # built-in on Python ≤ 3.12; Railway uses 3.11
 import base64
 import io
 import logging
@@ -30,12 +31,6 @@ import sys
 import threading
 import wave
 from http.server import BaseHTTPRequestHandler, HTTPServer
-
-# audioop was removed in Python 3.13 — use the drop-in backport when needed
-if sys.version_info >= (3, 13):
-    import audioop_lts as audioop  # type: ignore
-else:
-    import audioop  # type: ignore
 
 import httpx
 from dotenv import load_dotenv
