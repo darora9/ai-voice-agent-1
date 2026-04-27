@@ -6,3 +6,8 @@ httpx==0.27.0
 google-auth==2.29.0
 google-api-python-client==2.128.0
 
+# LiveKit agent stack (Vobiz SIP integration)
+livekit>=0.14.0
+livekit-agents>=0.11.0,<1.0
+livekit-plugins-silero>=0.6.0
+
