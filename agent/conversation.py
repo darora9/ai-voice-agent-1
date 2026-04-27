@@ -560,7 +560,7 @@ class ConversationManager:
                 self.state = State.WAIT_DATETIME
                 return "कृपया तारीख़ और समय बताएं।"
             first, last = self.available_slots[0], self.available_slots[-1]
-            return f"{first} से {last} बजे तक slots हैं। कौनसा समय ठीक रहेगा?"
+            return f"{_fmt_time(first)} से {_fmt_time(last)} बजे तक slots हैं। कौनसा समय ठीक रहेगा?"
 
         # PM flip: only when no explicit qualifier (subah/shaam/raat)
         # Hours 7-8 are never flipped (could be genuine morning)
@@ -785,7 +785,7 @@ class ConversationManager:
             self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
-                f"{_human_date(self.date)} को {first} बजे से {last} बजे तक slots available हैं। "
+                f"{_human_date(self.date)} को {_fmt_time(first)} बजे से {_fmt_time(last)} बजे तक slots available हैं। "
                 "आप कौनसा समय prefer करेंगे?"
             )
         else:
@@ -1025,7 +1025,7 @@ class ConversationManager:
             self.state = State.WAIT_TIME
             first, last = slots[0], slots[-1]
             return (
-                f"{_human_date(query_date)} को {first} बजे से {last} बजे तक slots available हैं। "
+                f"{_human_date(query_date)} को {_fmt_time(first)} बजे से {_fmt_time(last)} बजे तक slots available हैं। "
                 "आप कौनसा समय prefer करेंगे?"
             )
 
