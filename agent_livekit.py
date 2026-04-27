@@ -48,7 +48,7 @@ from livekit.agents import (
 )
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.agents.types import APIConnectOptions, DEFAULT_API_CONNECT_OPTIONS
-from livekit.plugins import silero, azure
+from livekit.plugins import silero
 
 # livekit-agents 0.12.x removed stt.AudioBuffer — define locally
 AudioBuffer = list[rtc.AudioFrame]
@@ -200,6 +200,79 @@ def _empty_speech_event() -> stt.SpeechEvent:
         type=stt.SpeechEventType.FINAL_TRANSCRIPT,
         alternatives=[stt.SpeechData(language="hi-IN", text="")],
     )
+
+
+# ---------------------------------------------------------------------------
+# Azure Cognitive Services — TTS plugin (REST, no native SDK)
+# ---------------------------------------------------------------------------
+
+class AzureTTS(tts.TTS):
+    """
+    Azure TTS via REST API — no native SDK, no libuuid dependency.
+    Requests riff-8khz-16bit-mono-pcm directly for phone calls.
+    """
+
+    def __init__(self):
+        super().__init__(
+            capabilities=tts.TTSCapabilities(streaming=False),
+            sample_rate=8000,
+            num_channels=1,
+        )
+        self._http = _http
+
+    def synthesize(self, text: str, **kwargs) -> "AzureTTSStream":
+        return AzureTTSStream(tts=self, input_text=text, http=self._http, **kwargs)
+
+
+class AzureTTSStream(tts.ChunkedStream):
+    def __init__(self, *, tts: AzureTTS, input_text: str, http: httpx.AsyncClient, **kwargs):
+        super().__init__(tts=tts, input_text=input_text, **kwargs)
+        self._http = http
+
+    async def _run(self, output_emitter=None) -> None:
+        ssml = (
+            f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="hi-IN">'
+            f'<voice name="{_AZURE_TTS_VOICE}">{self._input_text}</voice>'
+            f'</speak>'
+        )
+        endpoint = f"https://{_AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
+        headers = {
+            "Ocp-Apim-Subscription-Key": _AZURE_SPEECH_KEY,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "riff-8khz-16bit-mono-pcm",
+            "User-Agent": "ai-voice-agent",
+        }
+
+        try:
+            resp = await self._http.post(endpoint, headers=headers, content=ssml.encode("utf-8"))
+            resp.raise_for_status()
+            pcm = _wav_to_pcm(resp.content)
+            frame = rtc.AudioFrame(
+                data=bytearray(pcm),
+                sample_rate=8000,
+                num_channels=1,
+                samples_per_channel=len(pcm) // 2,
+            )
+
+            if output_emitter is not None:
+                request_id = uuid4().hex
+                output_emitter.initialize(
+                    request_id=request_id,
+                    sample_rate=8000,
+                    num_channels=1,
+                    mime_type="audio/pcm",
+                )
+                output_emitter.push(frame)
+                output_emitter.flush()
+            else:
+                self._event_ch.send_nowait(
+                    tts.SynthesizedAudio(
+                        request_id=getattr(self, "_request_id", uuid4().hex),
+                        frame=frame,
+                    )
+                )
+        except Exception as e:
+            logger.error(f"[AzureTTS Error] {e}")
 
 
 # ---------------------------------------------------------------------------

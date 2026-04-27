@@ -10,6 +10,5 @@ google-api-python-client==2.128.0
 livekit>=0.14.0
 livekit-agents>=0.11.0,<1.0
 livekit-plugins-silero>=0.6.0
-livekit-plugins-azure>=0.3.0
 av>=12.0.0
 
