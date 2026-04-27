@@ -404,7 +404,7 @@ async def entrypoint(ctx: JobContext):
         # 500 ms of silence = end of caller turn.
         # Lower = faster response; higher = fewer false cuts on Hindi pauses.
         min_endpointing_delay=0.3,
-        allow_interruptions=False,
+        allow_interruptions=True,
     )
 
     agent.start(ctx.room)
