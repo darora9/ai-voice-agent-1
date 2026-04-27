@@ -87,8 +87,7 @@ _AZURE_TTS_VOICE     = os.getenv("AZURE_TTS_VOICE", "hi-IN-SwaraNeural")
 # Shared HTTP client — keeps TLS connections alive across STT + TTS calls
 _http = httpx.AsyncClient(
     timeout=15,
-    limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-    keepalive_expiry=30.0,
+    limits=httpx.Limits(max_keepalive_connections=5, max_connections=10, keepalive_expiry=30.0),
 )
 
 
