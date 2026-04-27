@@ -79,6 +79,12 @@ _SARVAM_KEY   = os.environ["SARVAM_API_KEY"]
 _TTS_SPEAKER  = os.getenv("SARVAM_TTS_SPEAKER", "priya")
 _TTS_LANG     = os.getenv("SARVAM_LANGUAGE_CODE", "hi-IN")
 
+# Shared HTTP client — keeps TLS connections alive across STT + TTS calls
+_http = httpx.AsyncClient(
+    timeout=15,
+    limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+)
+
 
 # ---------------------------------------------------------------------------
 # Health-check HTTP server (Railway needs a live port)
@@ -118,7 +124,7 @@ class SarvamSTT(stt.STT):
                 interim_results=False,
             )
         )
-        self._http = httpx.AsyncClient(timeout=15)
+        self._http = _http  # shared module-level client
 
     async def _recognize_impl(
         self,
@@ -207,7 +213,7 @@ class SarvamTTS(tts.TTS):
             sample_rate=8000,
             num_channels=1,
         )
-        self._http = httpx.AsyncClient(timeout=15)
+        self._http = _http  # shared module-level client
 
     def synthesize(self, text: str, **kwargs) -> "SarvamTTSStream":
         # **kwargs forwards conn_options added in livekit-agents 0.12.x
@@ -397,7 +403,7 @@ async def entrypoint(ctx: JobContext):
         tts=SarvamTTS(),
         # 500 ms of silence = end of caller turn.
         # Lower = faster response; higher = fewer false cuts on Hindi pauses.
-        min_endpointing_delay=0.5,
+        min_endpointing_delay=0.3,
         allow_interruptions=True,
     )
 
