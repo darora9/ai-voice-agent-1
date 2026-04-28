@@ -657,15 +657,15 @@ class ConversationManager:
             return _booking_failed()
 
     async def _send_sms_confirmation(self) -> None:
-        """Send booking confirmation SMS to the caller via Twilio REST API."""
+        """Send booking confirmation SMS via Vobiz SMS API."""
         to_number = self.patient_phone
         if not to_number:
             return
-        account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-        auth_token  = os.getenv("TWILIO_AUTH_TOKEN")
-        from_number = os.getenv("TWILIO_PHONE_NUMBER")  # e.g. +1XXXXXXXXXX
-        if not all([account_sid, auth_token, from_number]):
-            print("[SMS] Skipped — TWILIO_ACCOUNT_SID / AUTH_TOKEN / PHONE_NUMBER not set")
+
+        api_key     = os.getenv("VOBIZ_API_KEY")
+        from_number = os.getenv("VOBIZ_SMS_FROM")   # Vobiz DID number e.g. +912250658785
+        if not all([api_key, from_number]):
+            print("[SMS] Skipped — VOBIZ_API_KEY / VOBIZ_SMS_FROM not set")
             return
 
         import datetime as _dt
@@ -684,17 +684,18 @@ class ConversationManager:
             f"Doctor: {DOCTOR_NAME}. Thank you!"
         )
 
-        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        # TODO: replace URL and payload format once Vobiz SMS API endpoint is confirmed
+        url = "https://api.vobiz.ai/v1/sms/send"
         try:
             import httpx
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
                     url,
-                    auth=(account_sid, auth_token),
-                    data={"From": from_number, "To": to_number, "Body": body},
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"from": from_number, "to": to_number, "body": body},
                     timeout=10,
                 )
-            if resp.status_code == 201:
+            if resp.status_code in (200, 201):
                 print(f"[SMS] Sent to {to_number}")
             else:
                 print(f"[SMS] Failed ({resp.status_code}): {resp.text[:200]}")
