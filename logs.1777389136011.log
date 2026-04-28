@@ -1,0 +1,646 @@
+2026-04-28T15:07:16.307965096Z [err]  15:07:06 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:07:16.307971684Z [err]  15:07:06 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:07:16.307975982Z [err]  15:07:09 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:07:16.307979582Z [err]  15:07:09 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac0950>
+2026-04-28T15:07:16.307983859Z [err]  15:07:09 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:07:16.307987591Z [err]  15:07:09 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ef9520>
+2026-04-28T15:07:16.307991211Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:16.307995427Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:16.307999662Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:16.308003831Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:16.308007628Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:16.308011281Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'dg-request-id', b'019dd4a1-3a7f-7d93-b114-ea50715dece1'), (b'content-length', b'1449'), (b'date', b'Tue, 28 Apr 2026 15:07:09 GMT')])
+2026-04-28T15:07:16.309428190Z [err]  15:07:09 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:07:16.309433669Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:16.309438120Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:16.309441661Z [err]  15:07:09 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:16.309444924Z [err]  15:07:09 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:16.309448253Z [err]  15:07:09 [INFO] agent — [STT] 'अगला कौन सा slot available है?'
+2026-04-28T15:07:16.309452339Z [err]  15:07:09 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:07:16.309456319Z [err]  15:07:09 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:07:16.309459880Z [err]  15:07:09 [INFO] agent — [STT] 'अगला कौन सा slot available है?'
+2026-04-28T15:07:16.309464311Z [inf]  [STT] 'अगला कौन सा slot available है?'
+2026-04-28T15:07:16.309467593Z [err]  15:07:09 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:07:16.309470645Z [err]  15:07:09 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'अगला कौन सा slot available है?'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:07:16.310723215Z [err]  15:07:09 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:16.310727013Z [err]  15:07:09 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:16.310730425Z [err]  15:07:09 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:07:16.310733950Z [err]  15:07:09 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18791760>
+2026-04-28T15:07:16.310737685Z [err]  15:07:09 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:07:16.310742436Z [err]  15:07:09 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876bd10>
+2026-04-28T15:07:16.310745748Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:16.310749297Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:16.310752658Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:16.310756118Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:16.310759625Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:16.310763119Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:09 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'997'), (b'x-ratelimit-remaining-tokens', b'11047'), (b'x-ratelimit-reset-requests', b'4m19.2s'), (b'x-ratelimit-reset-tokens', b'4.765s'), (b'x-request-id', b'req_01kqaa2exkepqbrj41k4jxtesw'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36f9990ed1c8bd-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:07:16.311922032Z [err]  15:07:09 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:07:16.311926558Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:16.311929676Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:16.311932978Z [err]  15:07:09 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:16.311935887Z [err]  15:07:09 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:16.311938438Z [err]  15:07:09 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:07:16.311941052Z [err]  15:07:09 [INFO] agent — [Agent] 'कृपया तारीख़ बताएं जिसके बारे में जानना चाहते हैं।'
+2026-04-28T15:07:16.311943734Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:16.311946458Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:16.311949215Z [err]  15:07:09 [INFO] agent — [Agent] 'कृपया तारीख़ बताएं जिसके बारे में जानना चाहते हैं।'
+2026-04-28T15:07:16.311952289Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:16.311954801Z [inf]  [Agent] 'कृपया तारीख़ बताएं जिसके बारे में जानना चाहते हैं।'
+2026-04-28T15:07:16.311957442Z [err]  15:07:09 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:16.313592496Z [err]  15:07:09 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:16.313596733Z [err]  15:07:10 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:10 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'141'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:07:16.313599593Z [err]  15:07:10 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:07:16.313602863Z [err]  15:07:10 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:16.313605991Z [err]  15:07:10 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:16.313609111Z [err]  15:07:10 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:16.313612502Z [err]  15:07:10 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:16.313615259Z [err]  15:07:10 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:07:16.313618196Z [err]  15:07:14 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:07:16.313621758Z [err]  15:07:14 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:07:18.876561447Z [err]  15:07:18 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:18.876567096Z [err]  15:07:18 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:18.876571159Z [err]  15:07:18 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:18.876595599Z [err]  15:07:18 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1873f590>
+2026-04-28T15:07:18.876600112Z [err]  15:07:18 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:07:18.876605344Z [err]  15:07:18 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1873e8d0>
+2026-04-28T15:07:18.876607601Z [err]  15:07:18 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:18.876613319Z [err]  15:07:18 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:18.876614384Z [err]  15:07:18 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:18.876623391Z [err]  15:07:18 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:18.876628274Z [err]  15:07:18 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:07:19.076330321Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a1-5f17-74c0-887c-5883b6dc397c'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:07:19 GMT')])
+2026-04-28T15:07:19.076333973Z [err]  15:07:19 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:07:19.076337232Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:19.076340448Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:19.076344878Z [err]  15:07:19 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:19.076349144Z [err]  15:07:19 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:19.076357242Z [err]  15:07:19 [INFO] agent — [STT] 'जल्दी से जल्दी कौन सा time पर आ सकता हूं मैं?'
+2026-04-28T15:07:19.076360210Z [err]  15:07:19 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:07:19.076363249Z [err]  15:07:19 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:07:19.076366508Z [err]  15:07:19 [INFO] agent — [STT] 'जल्दी से जल्दी कौन सा time पर आ सकता हूं मैं?'
+2026-04-28T15:07:19.078290871Z [err]  15:07:19 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:07:19.078294371Z [inf]  [STT] 'जल्दी से जल्दी कौन सा time पर आ सकता हूं मैं?'
+2026-04-28T15:07:19.078297517Z [err]  15:07:19 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'जल्दी से जल्दी कौन सा time पर आ सकता हूं मैं?'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:07:19.080278117Z [err]  15:07:19 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:19.080282753Z [err]  15:07:19 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:19.080287615Z [err]  15:07:19 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:07:19.082439826Z [err]  15:07:19 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876b2c0>
+2026-04-28T15:07:19.082445662Z [err]  15:07:19 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:07:19.090169062Z [err]  15:07:19 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1873f9e0>
+2026-04-28T15:07:19.090172827Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:19.090175830Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:19.090179375Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:19.090182065Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:19.090184665Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:19.318699970Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:19 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'996'), (b'x-ratelimit-remaining-tokens', b'11035'), (b'x-ratelimit-reset-requests', b'5m45.6s'), (b'x-ratelimit-reset-tokens', b'4.825s'), (b'x-request-id', b'req_01kqaa2r69evgb66srzzhdeyyw'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36f9d44ea4f9ed-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:07:19.320791873Z [err]  15:07:19 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:07:19.320798976Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:19.320803573Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:19.320808315Z [err]  15:07:19 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:19.320812286Z [err]  15:07:19 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:19.320816180Z [err]  15:07:19 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:07:19.320820184Z [err]  15:07:19 [INFO] agent — [Agent] "कृपया तारीख़ और समय बताएं, जैसे 'कल शाम 4 बजे' या 'अगले शुक्रवार सुबह 11 बजे'।"
+2026-04-28T15:07:19.322739913Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:19.322745625Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:19.322749724Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:19.322754248Z [err]  15:07:19 [INFO] agent — [Agent] "कृपया तारीख़ और समय बताएं, जैसे 'कल शाम 4 बजे' या 'अगले शुक्रवार सुबह 11 बजे'।"
+2026-04-28T15:07:19.322758178Z [err]  15:07:19 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:19.322761976Z [inf]  [Agent] "कृपया तारीख़ और समय बताएं, जैसे 'कल शाम 4 बजे' या 'अगले शुक्रवार सुबह 11 बजे'।"
+2026-04-28T15:07:19.322765676Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:19.880721174Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:19 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'37'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:07:19.880726728Z [err]  15:07:19 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:07:19.880747292Z [err]  15:07:19 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:20.336372221Z [err]  15:07:20 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:20.336377347Z [err]  15:07:20 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:20.336381024Z [err]  15:07:20 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:20.336384573Z [err]  15:07:20 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:07:27.903588472Z [err]  15:07:27 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:07:27.903639220Z [err]  15:07:27 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:07:30.980245533Z [err]  15:07:30 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:30.980249344Z [err]  15:07:30 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:30.980252174Z [err]  15:07:30 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:07:30.987191679Z [err]  15:07:30 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876a720>
+2026-04-28T15:07:30.987196242Z [err]  15:07:30 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:07:31.000052379Z [err]  15:07:30 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876a990>
+2026-04-28T15:07:31.000057024Z [err]  15:07:30 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:31.000061643Z [err]  15:07:30 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:31.000067460Z [err]  15:07:30 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:31.014979545Z [err]  15:07:31 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:31.014983079Z [err]  15:07:31 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:32.016625987Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a1-8f39-7682-b4a7-c3bd60ce64d7'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:07:32 GMT')])
+2026-04-28T15:07:32.018926940Z [err]  15:07:32 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:07:32.018932036Z [err]  15:07:32 [INFO] agent — [STT] 'कल कौन कौन से slot available है?'
+2026-04-28T15:07:32.018935764Z [err]  15:07:32 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:07:32.018939439Z [inf]  [STT] 'कल कौन कौन से slot available है?'
+2026-04-28T15:07:32.018963513Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:32.018971502Z [err]  15:07:32 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:32.018975731Z [err]  15:07:32 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:32.018979468Z [err]  15:07:32 [INFO] agent — [STT] 'कल कौन कौन से slot available है?'
+2026-04-28T15:07:32.018983277Z [err]  15:07:32 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:07:32.019000445Z [err]  15:07:32 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:07:32.019003687Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:32.021347587Z [err]  15:07:32 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'कल कौन कौन से slot available है?'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:07:32.023713516Z [err]  15:07:32 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:07:32.023715966Z [err]  15:07:32 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:32.023720537Z [err]  15:07:32 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:07:32.023726850Z [err]  15:07:32 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876bec0>
+2026-04-28T15:07:32.023729240Z [err]  15:07:32 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:32.030155601Z [err]  15:07:32 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac0ef0>
+2026-04-28T15:07:32.030159018Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:32.030162107Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:32.030165085Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:32.030168048Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:32.030170862Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:32.172977141Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:32 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'995'), (b'x-ratelimit-remaining-tokens', b'11082'), (b'x-ratelimit-reset-requests', b'7m12s'), (b'x-ratelimit-reset-tokens', b'4.59s'), (b'x-request-id', b'req_01kqaa34tmey6rxtt19k8s629j'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36fa252e698bdb-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:07:32.172980378Z [err]  15:07:32 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:07:32.172984439Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:32.172989054Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:32.172993333Z [err]  15:07:32 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:32.172997062Z [err]  15:07:32 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:32.175049260Z [err]  15:07:32 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:07:32.183072205Z [err]  15:07:32 [DEBUG] googleapiclient.discovery — URL being requested: GET https://www.googleapis.com/calendar/v3/calendars/dheerajarora242%40gmail.com/events?timeMin=2026-04-29T09%3A00%3A00%2B05%3A30&timeMax=2026-04-29T18%3A00%3A00%2B05%3A30&singleEvents=true&orderBy=startTime&alt=json
+2026-04-28T15:07:32.206272253Z [err]  15:07:32 [DEBUG] google_auth_httplib2 — Making request: POST https://oauth2.googleapis.com/token
+2026-04-28T15:07:32.940747496Z [err]  15:07:32 [INFO] agent — [Agent] 'बुधवार, 29 April को 9 बजे से 4:30 बजे तक slots available हैं। आप कौनसा समय prefer करेंगे?'
+2026-04-28T15:07:32.940752984Z [err]  15:07:32 [INFO] agent — [Agent] 'बुधवार, 29 April को 9 बजे से 4:30 बजे तक slots available हैं। आप कौनसा समय prefer करेंगे?'
+2026-04-28T15:07:32.940757291Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:32.940759220Z [inf]  [Agent] 'बुधवार, 29 April को 9 बजे से 4:30 बजे तक slots available हैं। आप कौनसा समय prefer करेंगे?'
+2026-04-28T15:07:32.940765812Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:32.940766305Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:32.940772763Z [err]  15:07:32 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:32.940773059Z [err]  15:07:32 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:33.230177070Z [err]  15:07:33 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:33 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'198'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:07:33.230183407Z [err]  15:07:33 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:07:33.230189508Z [err]  15:07:33 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:33.960587696Z [err]  15:07:33 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:33.960591202Z [err]  15:07:33 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:33.960594438Z [err]  15:07:33 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:33.960597734Z [err]  15:07:33 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:07:43.179977120Z [err]  15:07:43 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:07:43.179985357Z [err]  15:07:43 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:07:45.185249988Z [err]  15:07:45 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:45.187725670Z [err]  15:07:45 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:45.187730591Z [err]  15:07:45 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:07:45.240532902Z [err]  15:07:45 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187900e0>
+2026-04-28T15:07:45.240536892Z [err]  15:07:45 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:07:45.247793605Z [err]  15:07:45 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac1550>
+2026-04-28T15:07:45.247796318Z [err]  15:07:45 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:45.247798860Z [err]  15:07:45 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:45.247801523Z [err]  15:07:45 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:45.249489668Z [err]  15:07:45 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:45.249492932Z [err]  15:07:45 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:46.927539002Z [err]  15:07:46 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:07:46.927545468Z [err]  15:07:46 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:07:46.927549285Z [err]  15:07:46 [INFO] agent — [STT] 'दो बजे.'
+2026-04-28T15:07:46.927553130Z [err]  15:07:46 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:07:46.927556914Z [inf]  [STT] 'दो बजे.'
+2026-04-28T15:07:46.927579167Z [err]  15:07:46 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a1-c6dd-72a0-96e1-724b9639d54e'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:07:46 GMT')])
+2026-04-28T15:07:46.927583116Z [err]  15:07:46 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:07:46.927587587Z [err]  15:07:46 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:46.927591513Z [err]  15:07:46 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:46.927594298Z [err]  15:07:46 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:46.927597887Z [err]  15:07:46 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:46.927601287Z [err]  15:07:46 [INFO] agent — [STT] 'दो बजे.'
+2026-04-28T15:07:46.928903857Z [err]  15:07:46 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'दो बजे.'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:07:46.930871643Z [err]  15:07:46 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:46.930874294Z [err]  15:07:46 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:46.930877108Z [err]  15:07:46 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:07:46.930879813Z [err]  15:07:46 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac07d0>
+2026-04-28T15:07:46.930882386Z [err]  15:07:46 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:07:46.936518780Z [err]  15:07:46 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:46.936523264Z [err]  15:07:46 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:46.936527155Z [err]  15:07:46 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:46.936531407Z [err]  15:07:46 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:46.936534718Z [err]  15:07:46 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:46.936617056Z [err]  15:07:46 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac0710>
+2026-04-28T15:07:47.125676835Z [err]  15:07:47 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:47 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'994'), (b'x-ratelimit-remaining-tokens', b'11092'), (b'x-ratelimit-reset-requests', b'8m38.4s'), (b'x-ratelimit-reset-tokens', b'4.539s'), (b'x-request-id', b'req_01kqaa3kcdemavtm13bvzd278h'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36fa825da81949-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:07:47.125681218Z [err]  15:07:47 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:07:47.125684211Z [err]  15:07:47 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:47.125687212Z [err]  15:07:47 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:47.125690665Z [err]  15:07:47 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:47.125693500Z [err]  15:07:47 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:47.125696165Z [err]  15:07:47 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:07:47.125699509Z [err]  15:07:47 [DEBUG] googleapiclient.discovery — URL being requested: GET https://www.googleapis.com/calendar/v3/calendars/dheerajarora242%40gmail.com/events?timeMin=2026-04-29T09%3A00%3A00%2B05%3A30&timeMax=2026-04-29T18%3A00%3A00%2B05%3A30&singleEvents=true&orderBy=startTime&alt=json
+2026-04-28T15:07:47.443274875Z [err]  15:07:47 [INFO] agent — [Agent] '2 बजे slot नहीं है। पास में: 1:30 और 3 बजे। कौनसा ठीक रहेगा?'
+2026-04-28T15:07:47.443279685Z [err]  15:07:47 [INFO] agent — [Agent] '2 बजे slot नहीं है। पास में: 1:30 और 3 बजे। कौनसा ठीक रहेगा?'
+2026-04-28T15:07:47.443283252Z [inf]  [Agent] '2 बजे slot नहीं है। पास में: 1:30 और 3 बजे। कौनसा ठीक रहेगा?'
+2026-04-28T15:07:47.443286228Z [err]  15:07:47 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:47.445206307Z [err]  15:07:47 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:47.445211224Z [err]  15:07:47 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:47.445214365Z [err]  15:07:47 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:47.445217430Z [err]  15:07:47 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:47.942681035Z [err]  15:07:47 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:47 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'217'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:07:47.942684169Z [err]  15:07:47 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:07:47.942687080Z [err]  15:07:47 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:48.640795930Z [err]  15:07:48 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:48.640796209Z [err]  15:07:48 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:48.640800776Z [err]  15:07:48 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:48.640804539Z [err]  15:07:48 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:07:56.963563889Z [err]  15:07:56 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:07:56.963567803Z [err]  15:07:56 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:07:58.980562642Z [err]  15:07:58 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:58.980572108Z [err]  15:07:58 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:58.980576465Z [err]  15:07:58 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:58.980580928Z [err]  15:07:58 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:58.980584325Z [err]  15:07:58 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:58.980595454Z [err]  15:07:58 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:58.980599496Z [err]  15:07:58 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:58.980602254Z [err]  15:07:58 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:07:58.980605204Z [err]  15:07:58 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876bbc0>
+2026-04-28T15:07:58.980608093Z [err]  15:07:58 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:07:58.980611261Z [err]  15:07:58 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18791760>
+2026-04-28T15:07:59.963376158Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:59.963376628Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a1-fc35-7c00-9510-f9521dac6bfb'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:07:59 GMT')])
+2026-04-28T15:07:59.963384718Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:59.963385608Z [err]  15:07:59 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:59.963391502Z [err]  15:07:59 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:59.963397251Z [err]  15:07:59 [INFO] agent — [STT] 'तीन बजे कर दो.'
+2026-04-28T15:07:59.963399581Z [err]  15:07:59 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:07:59.963400439Z [err]  15:07:59 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:07:59.963401834Z [err]  15:07:59 [INFO] agent — [STT] 'तीन बजे कर दो.'
+2026-04-28T15:07:59.963407579Z [err]  15:07:59 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:07:59.963409044Z [err]  15:07:59 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:07:59.963412659Z [inf]  [STT] 'तीन बजे कर दो.'
+2026-04-28T15:07:59.964344449Z [err]  15:07:59 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'तीन बजे कर दो.'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:07:59.966295862Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:59.966302473Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:59.966307570Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:59.966313766Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:07:59 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'993'), (b'x-ratelimit-remaining-tokens', b'11050'), (b'x-ratelimit-reset-requests', b'10m4.8s'), (b'x-ratelimit-reset-tokens', b'4.75s'), (b'x-request-id', b'req_01kqaa3zv9eqebvk0bmf9hrgj0'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36fad21d2ab8e7-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:07:59.966372229Z [err]  15:07:59 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:07:59.966375210Z [err]  15:07:59 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:07:59.966378189Z [err]  15:07:59 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:07:59.966381070Z [err]  15:07:59 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18768ad0>
+2026-04-28T15:07:59.966383933Z [err]  15:07:59 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:07:59.966386604Z [err]  15:07:59 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1873d0a0>
+2026-04-28T15:07:59.966390384Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:59.966393433Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:59.968398211Z [inf]  [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:07:59.968409730Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:07:59.968410239Z [err]  15:07:59 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:07:59.968413112Z [err]  15:07:59 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:07:59.968418581Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:07:59.968420401Z [err]  15:07:59 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:07:59.968422022Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:59.968423244Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:07:59.968426837Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:07:59.968428740Z [err]  15:07:59 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:07:59.968433703Z [err]  15:07:59 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:07:59.968443228Z [err]  15:07:59 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:07:59.968462006Z [err]  15:07:59 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:07:59.968469207Z [err]  15:07:59 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:08:00.502729821Z [err]  15:08:00 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:00 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'288'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:08:00.502733304Z [err]  15:08:00 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:08:00.502736531Z [err]  15:08:00 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:01.232471923Z [err]  15:08:01 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:01.232476286Z [err]  15:08:01 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:01.234912891Z [err]  15:08:01 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:01.234916229Z [err]  15:08:01 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:08:08.602993401Z [err]  15:08:08 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:08:08.602997749Z [err]  15:08:08 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:08:12.042599779Z [err]  15:08:12 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:12.042604359Z [err]  15:08:12 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:12.042607418Z [err]  15:08:12 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:08:12.044947884Z [err]  15:08:12 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18790530>
+2026-04-28T15:08:12.044952258Z [err]  15:08:12 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:08:12.053433131Z [err]  15:08:12 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac1610>
+2026-04-28T15:08:12.053439935Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:12.053444180Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:12.053448865Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:12.063462813Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:12.063484757Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:12.195292124Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a2-2f95-7063-a198-0b42ecaba858'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:08:12 GMT')])
+2026-04-28T15:08:12.197808943Z [err]  15:08:12 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:08:12.197815466Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:12.197820632Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:12.197825855Z [err]  15:08:12 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:12.197830746Z [err]  15:08:12 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:12.197835507Z [err]  15:08:12 [INFO] agent — [STT] 'नहीं नहीं, तीन बजे नहीं, एक बजे कर दो.'
+2026-04-28T15:08:12.197840086Z [err]  15:08:12 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:08:12.197845258Z [err]  15:08:12 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:08:12.197850141Z [err]  15:08:12 [INFO] agent — [STT] 'नहीं नहीं, तीन बजे नहीं, एक बजे कर दो.'
+2026-04-28T15:08:12.197855257Z [inf]  [STT] 'नहीं नहीं, तीन बजे नहीं, एक बजे कर दो.'
+2026-04-28T15:08:12.338155057Z [err]  15:08:12 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:08:12.342348316Z [err]  15:08:12 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'नहीं नहीं, तीन बजे नहीं, एक बजे कर दो.'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:08:12.344421715Z [err]  15:08:12 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:12.344427545Z [err]  15:08:12 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:12.344431649Z [err]  15:08:12 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:08:12.344435429Z [err]  15:08:12 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac14c0>
+2026-04-28T15:08:12.344439328Z [err]  15:08:12 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:08:12.348523979Z [err]  15:08:12 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac0740>
+2026-04-28T15:08:12.348527646Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:12.350805790Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:12.350810077Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:12.350813767Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:12.350816689Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:12.482147738Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:12 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'992'), (b'x-ratelimit-remaining-tokens', b'11082'), (b'x-ratelimit-reset-requests', b'11m31.2s'), (b'x-ratelimit-reset-tokens', b'4.59s'), (b'x-request-id', b'req_01kqaa4c6ee6m8babj6hhcqp8c'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36fb212f177a73-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:08:12.482151721Z [err]  15:08:12 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:08:12.482154653Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:12.482158016Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:12.482161838Z [err]  15:08:12 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:12.482166779Z [err]  15:08:12 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:12.482170042Z [err]  15:08:12 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:08:12.484142365Z [err]  15:08:12 [DEBUG] googleapiclient.discovery — URL being requested: GET https://www.googleapis.com/calendar/v3/calendars/dheerajarora242%40gmail.com/events?timeMin=2026-04-29T09%3A00%3A00%2B05%3A30&timeMax=2026-04-29T18%3A00%3A00%2B05%3A30&singleEvents=true&orderBy=startTime&alt=json
+2026-04-28T15:08:13.024497273Z [err]  15:08:12 [INFO] agent — [Agent] '1 बजे slot नहीं है। पास में: 12:30 और 1:30 बजे। कौनसा ठीक रहेगा?'
+2026-04-28T15:08:13.024503217Z [err]  15:08:12 [INFO] agent — [Agent] '1 बजे slot नहीं है। पास में: 12:30 और 1:30 बजे। कौनसा ठीक रहेगा?'
+2026-04-28T15:08:13.024510535Z [inf]  [Agent] '1 बजे slot नहीं है। पास में: 12:30 और 1:30 बजे। कौनसा ठीक रहेगा?'
+2026-04-28T15:08:13.024517039Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:13.024521841Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:13.024526588Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:13.024531027Z [err]  15:08:12 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:13.024535367Z [err]  15:08:12 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:13.317294018Z [err]  15:08:13 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:13 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'221'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:08:13.317298102Z [err]  15:08:13 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:08:13.317301207Z [err]  15:08:13 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:14.049057396Z [err]  15:08:14 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:08:14.049085385Z [err]  15:08:14 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:14.049090516Z [err]  15:08:14 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:14.049094923Z [err]  15:08:14 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:23.407736610Z [err]  15:08:23 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:08:23.407741259Z [err]  15:08:23 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:08:25.640151260Z [err]  15:08:25 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:25.640154313Z [err]  15:08:25 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:25.640157085Z [err]  15:08:25 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:08:25.647710786Z [err]  15:08:25 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187c4ce0>
+2026-04-28T15:08:25.647715430Z [err]  15:08:25 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:08:25.654444656Z [err]  15:08:25 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876ac00>
+2026-04-28T15:08:25.654448928Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:25.654451858Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:25.654454725Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:25.661285301Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:25.661289728Z [err]  15:08:25 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:26.027982435Z [err]  15:08:25 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:26.027988255Z [err]  15:08:25 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:26.027992386Z [err]  15:08:25 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:26.027996552Z [err]  15:08:25 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:26.028033840Z [err]  15:08:25 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a2-64b5-7a91-9538-8ee78b34b674'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:08:25 GMT')])
+2026-04-28T15:08:26.028038403Z [err]  15:08:25 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:08:26.028056884Z [err]  15:08:25 [INFO] agent — [STT] 'डेढ़ बजे वाला कर दो, फिर चलो.'
+2026-04-28T15:08:26.028068429Z [err]  15:08:25 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:08:26.028074083Z [err]  15:08:25 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:08:26.028077972Z [err]  15:08:25 [INFO] agent — [STT] 'डेढ़ बजे वाला कर दो, फिर चलो.'
+2026-04-28T15:08:26.028081546Z [inf]  [STT] 'डेढ़ बजे वाला कर दो, फिर चलो.'
+2026-04-28T15:08:26.029113270Z [err]  15:08:25 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:08:26.029118504Z [err]  15:08:25 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'डेढ़ बजे वाला कर दो, फिर चलो.'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:08:26.031008422Z [err]  15:08:25 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:26.031012486Z [err]  15:08:25 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1876bbf0>
+2026-04-28T15:08:26.031017622Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:26.031024396Z [err]  15:08:25 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:26.031024791Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:26.031033556Z [err]  15:08:25 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:26.031033781Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:26.031041462Z [err]  15:08:25 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:08:26.031042862Z [err]  15:08:25 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:26.031047825Z [err]  15:08:25 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18769a30>
+2026-04-28T15:08:26.031053100Z [err]  15:08:25 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:08:26.100928277Z [err]  15:08:26 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:26 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'dls'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'991'), (b'x-ratelimit-remaining-tokens', b'11071'), (b'x-ratelimit-reset-requests', b'12m57.599s'), (b'x-ratelimit-reset-tokens', b'4.645s'), (b'x-request-id', b'req_01kqaa4sfgf8f8ddbsb9etzsmc'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36fb7629afe196-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:08:26.103169875Z [err]  15:08:26 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:08:26.103174695Z [err]  15:08:26 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:26.103177765Z [err]  15:08:26 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:26.103181089Z [err]  15:08:26 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:26.103184365Z [err]  15:08:26 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:26.103187089Z [err]  15:08:26 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:08:26.103189718Z [err]  15:08:26 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3:30 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:08:26.105145360Z [err]  15:08:26 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:26.105148649Z [err]  15:08:26 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3:30 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:08:26.105151298Z [err]  15:08:26 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:26.105154089Z [err]  15:08:26 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:26.105157025Z [inf]  [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3:30 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:08:26.105160616Z [err]  15:08:26 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:26.105164126Z [err]  15:08:26 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:27.031665440Z [err]  15:08:26 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:26 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'562'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:08:27.031670272Z [err]  15:08:26 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:08:27.031673997Z [err]  15:08:26 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:27.647376727Z [err]  15:08:27 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:27.647380458Z [err]  15:08:27 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:27.647383498Z [err]  15:08:27 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:27.649507796Z [err]  15:08:27 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:08:36.106366696Z [err]  15:08:36 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:08:36.106401634Z [err]  15:08:36 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:08:39.049721318Z [err]  15:08:38 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:39.049726609Z [err]  15:08:38 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:39.049730321Z [err]  15:08:38 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:08:39.049733259Z [err]  15:08:38 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187a3c20>
+2026-04-28T15:08:39.049737223Z [err]  15:08:38 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:08:39.049749633Z [err]  15:08:38 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187be300>
+2026-04-28T15:08:39.049752986Z [err]  15:08:38 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:39.049756116Z [err]  15:08:38 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:39.049761194Z [err]  15:08:38 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:39.049764213Z [err]  15:08:38 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:39.049767296Z [err]  15:08:38 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:39.588622717Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a2-9812-70a3-9361-bc0f14e4dc53'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:08:39 GMT')])
+2026-04-28T15:08:39.588627509Z [err]  15:08:39 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:08:39.588630691Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:39.588633963Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:39.588638002Z [err]  15:08:39 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:39.590991869Z [err]  15:08:39 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:39.590996290Z [err]  15:08:39 [INFO] agent — [STT] 'नहीं डेढ़ बजे चाहिए.'
+2026-04-28T15:08:39.590999184Z [err]  15:08:39 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:08:39.591001957Z [err]  15:08:39 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:08:39.591007478Z [err]  15:08:39 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:08:39.593174921Z [err]  15:08:39 [DEBUG] groq._base_client — Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': 'Today is 2026-04-28 (YYYY-MM-DD). Extract date and/or time from Hindi/Punjabi/English text. Return date as YYYY-MM-DD ONLY if a date is explicitly mentioned — otherwise return null. Return time as HH:MM ONLY if a time is explicitly mentioned — otherwise return null. Return JSON: {"date": "YYYY-MM-DD or null", "time": "HH:MM or null"}. The input may be Hindi (Devanagari), Punjabi (Gurmukhi), English, or a mix. Relative dates: \'aaj\'/\'आज\'/\'ਅੱਜ\'=today, \'kal\'/\'कल\'/\'ਕੱਲ੍ਹ\'=tomorrow, \'parso\'/\'परसों\'/\'ਪਰਸੋਂ\'=day after tomorrow, \'agle\'/\'अगले\'/\'agli\'/\'अगली\'/\'ਅਗਲੇ\' X=next X. Weekday names always mean the NEXT upcoming occurrence: \'Monday\'=\'Somwar\'=\'सोमवार\'=\'ਸੋਮਵਾਰ\'->2026-05-04; \'Tuesday\'=\'Mangalwar\'=\'मंगलवार\'=\'ਮੰਗਲਵਾਰ\'->2026-05-05; \'Wednesday\'=\'Budhwar\'=\'बुधवार\'=\'ਬੁੱਧਵਾਰ\'->2026-04-29; \'Thursday\'=\'Guruwar\'=\'गुरुवार\'=\'ਵੀਰਵਾਰ\'->2026-04-30; \'Friday\'=\'Shukrawar\'=\'शुक्रवार\'=\'ਸ਼ੁੱਕਰਵਾਰ\'->2026-05-01; \'Saturday\'=\'Shaniwar\'=\'शनिवार\'=\'ਸ਼ਨੀਵਾਰ\'->2026-05-02; \'Sunday\'=\'Itvaar\'=\'रविवार\'=\'ਐਤਵਾਰ\'->2026-05-03. Time words: \'subah\'/\'सुबह\'/\'ਸਵੇਰੇ\'=morning (AM), \'dopahar\'/\'दोपहर\'/\'ਦੁਪਹਿਰ\'=noon (12:00-15:00), \'shaam\'/\'शाम\'/\'ਸ਼ਾਮ\'=evening (add 12 if hour<8, e.g. shaam 5=17:00), \'raat\'/\'रात\'/\'ਰਾਤ\'=night (add 12 if hour<8). No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. \'baje\'/\'बजे\'/\'bje\' means o\'clock. Examples: \'2 bje\'->14:00, \'3 बजे\'->15:00, \'10 बजे\'->10:00. \'sawa\'/\'सवा\'=+15min (सवा 3=3:15), \'saadhe\'/\'साढ़े\'=+30min (साढ़े 3=3:30). Examples using today=2026-04-28: \'kal shaam 5 baje\'->{"date":"2026-04-29","time":"17:00"}, \'parso shaam 5 bje\'->{"date":"2026-04-30","time":"17:00"}, \'subah 10 baje\'->{"date":null,"time":"10:00"}, \'parso\'->{"date":"2026-04-30","time":null}.'}, {'role': 'user', 'content': 'नहीं डेढ़ बजे चाहिए.'}], 'model': 'llama-3.3-70b-versatile', 'max_tokens': 50, 'response_format': {'type': 'json_object'}, 'temperature': 0}}
+2026-04-28T15:08:39.595537033Z [err]  15:08:39 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:39.595541765Z [err]  15:08:39 [INFO] agent — [STT] 'नहीं डेढ़ बजे चाहिए.'
+2026-04-28T15:08:39.595545378Z [inf]  [STT] 'नहीं डेढ़ बजे चाहिए.'
+2026-04-28T15:08:39.595548993Z [err]  15:08:39 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:39.595552482Z [err]  15:08:39 [DEBUG] httpcore.connection — connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-04-28T15:08:39.595555403Z [err]  15:08:39 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1873d0a0>
+2026-04-28T15:08:39.595558194Z [err]  15:08:39 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a07c50> server_hostname='api.groq.com' timeout=5.0
+2026-04-28T15:08:39.603095084Z [err]  15:08:39 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac15b0>
+2026-04-28T15:08:39.603098580Z [err]  15:08:39 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:39.603102041Z [err]  15:08:39 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:39.603105396Z [err]  15:08:39 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:39.603108686Z [err]  15:08:39 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:39.603112444Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:39.741641605Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:39 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'Server', b'cloudflare'), (b'vary', b'Origin'), (b'x-groq-region', b'yka'), (b'x-ratelimit-limit-requests', b'1000'), (b'x-ratelimit-limit-tokens', b'12000'), (b'x-ratelimit-remaining-requests', b'990'), (b'x-ratelimit-remaining-tokens', b'11045'), (b'x-ratelimit-reset-requests', b'14m24s'), (b'x-ratelimit-reset-tokens', b'4.775s'), (b'x-request-id', b'req_01kqaa56t5ffysahbw7rhqa7e3'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'cf-cache-status', b'DYNAMIC'), (b'Content-Encoding', b'gzip'), (b'CF-RAY', b'9f36fbcb8fb0dc04-SJC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-04-28T15:08:39.741646043Z [err]  15:08:39 [INFO] httpx — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-28T15:08:39.741650148Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:39.741654003Z [err]  15:08:39 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:39.741658744Z [err]  15:08:39 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:39.741662636Z [err]  15:08:39 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:39.741666506Z [err]  15:08:39 [DEBUG] groq._base_client — HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "200 OK"
+2026-04-28T15:08:39.744087299Z [err]  15:08:39 [DEBUG] googleapiclient.discovery — URL being requested: GET https://www.googleapis.com/calendar/v3/calendars/dheerajarora242%40gmail.com/events?timeMin=2026-04-29T09%3A00%3A00%2B05%3A30&timeMax=2026-04-29T18%3A00%3A00%2B05%3A30&singleEvents=true&orderBy=startTime&alt=json
+2026-04-28T15:08:40.136900205Z [err]  15:08:40 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3:30 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:08:40.136905078Z [err]  15:08:40 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3:30 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:08:40.136908382Z [inf]  [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 3:30 बजे slot available है। Confirm करूँ?'
+2026-04-28T15:08:40.139436114Z [err]  15:08:40 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:40.142055914Z [err]  15:08:40 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:40.142061773Z [err]  15:08:40 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:40.142065164Z [err]  15:08:40 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:40.142067947Z [err]  15:08:40 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:40.565626052Z [err]  15:08:40 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:40 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'178'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:08:40.565630584Z [err]  15:08:40 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:08:40.565633817Z [err]  15:08:40 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:41.297261348Z [err]  15:08:41 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:41.297266185Z [err]  15:08:41 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:41.297270704Z [err]  15:08:41 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:41.297275334Z [err]  15:08:41 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:08:49.760261269Z [err]  15:08:49 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:08:49.760265302Z [err]  15:08:49 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:08:53.167766408Z [err]  15:08:52 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:08:53.167770468Z [err]  15:08:52 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:08:53.167775971Z [err]  15:08:52 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:08:53.167779580Z [err]  15:08:52 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187bcb90>
+2026-04-28T15:08:53.167782740Z [err]  15:08:52 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:08:53.167785819Z [err]  15:08:52 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18793590>
+2026-04-28T15:08:53.167788978Z [err]  15:08:52 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:53.167791860Z [err]  15:08:52 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:53.167794770Z [err]  15:08:52 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:53.167798182Z [err]  15:08:52 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:53.167801267Z [err]  15:08:52 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:53.683279663Z [err]  15:08:53 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a2-cf3e-70c1-ad9a-073f6589ab91'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:08:53 GMT')])
+2026-04-28T15:08:53.685425369Z [inf]  [STT] 'एक बजे तीस minute पर जाइए.'
+2026-04-28T15:08:53.685444367Z [err]  15:08:53 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:08:53.685450947Z [err]  15:08:53 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:53.685454755Z [err]  15:08:53 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:53.685458510Z [err]  15:08:53 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:53.685463055Z [err]  15:08:53 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:53.685471766Z [err]  15:08:53 [INFO] agent — [STT] 'एक बजे तीस minute पर जाइए.'
+2026-04-28T15:08:53.685475123Z [err]  15:08:53 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:08:53.685478318Z [err]  15:08:53 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:08:53.685481603Z [err]  15:08:53 [INFO] agent — [STT] 'एक बजे तीस minute पर जाइए.'
+2026-04-28T15:08:53.685484761Z [err]  15:08:53 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:08:53.687261495Z [err]  15:08:53 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 15:30 बजे — क्या confirm करूँ?'
+2026-04-28T15:08:53.687266077Z [err]  15:08:53 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:53.688872400Z [err]  15:08:53 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:08:53.688877152Z [err]  15:08:53 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:08:53.688880504Z [err]  15:08:53 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:08:53.688884171Z [err]  15:08:53 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:08:53.688887636Z [err]  15:08:53 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 15:30 बजे — क्या confirm करूँ?'
+2026-04-28T15:08:53.688891163Z [inf]  [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 15:30 बजे — क्या confirm करूँ?'
+2026-04-28T15:08:54.154462695Z [err]  15:08:54 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:08:53 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'159'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:08:54.154467716Z [err]  15:08:54 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:08:54.154470695Z [err]  15:08:54 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:08:54.829519313Z [err]  15:08:54 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:08:54.829522238Z [err]  15:08:54 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:08:54.829525174Z [err]  15:08:54 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:08:54.831521257Z [err]  15:08:54 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:09:02.166258207Z [err]  15:09:01 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:09:02.166266244Z [err]  15:09:01 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:09:21.908687796Z [err]  15:09:13 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:09:21.908691938Z [err]  15:09:13 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:09:21.908694816Z [err]  15:09:13 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:09:21.908698732Z [err]  15:09:13 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf1873e6c0>
+2026-04-28T15:09:21.908701719Z [err]  15:09:13 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:09:21.908704457Z [err]  15:09:13 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac1e50>
+2026-04-28T15:09:21.908707167Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:21.908709866Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:09:21.908713287Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:09:21.908716035Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:09:21.908718607Z [err]  15:09:13 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:21.908722265Z [err]  15:09:13 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a3-1e18-73d0-a197-a8178c9517ca'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:09:13 GMT')])
+2026-04-28T15:09:21.910951876Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:09:21.910957692Z [err]  15:09:13 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:21.910961819Z [err]  15:09:13 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 15:30 बजे — क्या confirm करूँ?'
+2026-04-28T15:09:21.910969342Z [err]  15:09:13 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:09:21.910972230Z [err]  15:09:13 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:09:21.910975173Z [err]  15:09:13 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:09:21.910978193Z [err]  15:09:13 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:09:21.910981191Z [err]  15:09:13 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:09:21.910983946Z [err]  15:09:13 [INFO] agent — [STT] 'Hello.'
+2026-04-28T15:09:21.910986662Z [err]  15:09:13 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:09:21.910989411Z [err]  15:09:13 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:09:21.910992936Z [err]  15:09:13 [INFO] agent — [STT] 'Hello.'
+2026-04-28T15:09:21.910995704Z [inf]  [STT] 'Hello.'
+2026-04-28T15:09:21.910998578Z [err]  15:09:13 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:09:21.911001285Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:21.911004011Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:09:21.911007078Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:09:21.912873768Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:21.912878753Z [err]  15:09:13 [INFO] agent — [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 15:30 बजे — क्या confirm करूँ?'
+2026-04-28T15:09:21.912882985Z [inf]  [Agent] 'Maayka Sharma जी, बुधवार, 29 April को 15:30 बजे — क्या confirm करूँ?'
+2026-04-28T15:09:21.912886874Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:09:21.912889883Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:09:21.912893371Z [err]  15:09:13 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:09:21.912898590Z [err]  15:09:13 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:21.912902185Z [err]  15:09:14 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'dg-request-id', b'019dd4a3-2147-7fc0-be6b-68e39753582f'), (b'content-length', b'876'), (b'date', b'Tue, 28 Apr 2026 15:09:14 GMT')])
+2026-04-28T15:09:21.912905395Z [err]  15:09:14 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:09:21.915143041Z [err]  15:09:14 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:09:21.915148891Z [err]  15:09:14 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:09:21.915154786Z [err]  15:09:14 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:09:21.915159264Z [err]  15:09:14 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:09:21.915162910Z [err]  15:09:14 [INFO] agent — [STT] 'कर दो.'
+2026-04-28T15:09:21.915166797Z [err]  15:09:14 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:09:21.915170468Z [err]  15:09:14 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:09:21.915174224Z [err]  15:09:14 [DEBUG] livekit.agents.pipeline — skipping validation, agent is speaking and does not allow interruptions
+2026-04-28T15:09:21.915178018Z [err]  15:09:14 [INFO] agent — [STT] 'कर दो.'
+2026-04-28T15:09:21.915181461Z [inf]  [STT] 'कर दो.'
+2026-04-28T15:09:21.915185036Z [err]  15:09:14 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:09:14 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'61'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:09:21.915188311Z [err]  15:09:14 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:09:21.915191607Z [err]  15:09:14 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:09:21.915194728Z [err]  15:09:14 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:09:21.916976113Z [err]  15:09:14 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:09:21.916983810Z [err]  15:09:14 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:09:21.916988088Z [err]  15:09:14 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:09:22.217514023Z [err]  15:09:22 [DEBUG] livekit.agents.pipeline — speech playout finished
+2026-04-28T15:09:22.217517982Z [err]  15:09:22 [DEBUG] livekit.agents.pipeline — committed agent speech
+2026-04-28T15:09:23.777809279Z [err]  15:09:23 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:09:23.777812527Z [err]  15:09:23 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:09:23.777815686Z [err]  15:09:23 [DEBUG] httpcore.connection — connect_tcp.started host='api.deepgram.com' port=443 local_address=None timeout=15 socket_options=None
+2026-04-28T15:09:23.795270707Z [err]  15:09:23 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187939b0>
+2026-04-28T15:09:23.795274720Z [err]  15:09:23 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21a06bd0> server_hostname='api.deepgram.com' timeout=15
+2026-04-28T15:09:23.809681687Z [err]  15:09:23 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf187930b0>
+2026-04-28T15:09:23.809684701Z [err]  15:09:23 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:23.809687771Z [err]  15:09:23 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:09:23.809690848Z [err]  15:09:23 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:09:23.825732488Z [err]  15:09:23 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:09:23.825737155Z [err]  15:09:23 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:24.222215548Z [err]  15:09:24 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'content-type', b'application/json'), (b'dg-project-id', b'3d051e65-f26a-4eec-9ac1-b15cb8febe7a'), (b'vary', b'origin, access-control-request-method, access-control-request-headers'), (b'vary', b'accept-encoding'), (b'access-control-allow-credentials', b'true'), (b'access-control-expose-headers', b'dg-model-name,dg-model-uuid,dg-additional-model-uuids,dg-char-count,dg-request-id,dg-project-id,dg-error,dg-breaks-applied,dg-pronunciations-applied,dg-pronunciation-warnings'), (b'content-encoding', b'gzip'), (b'dg-request-id', b'019dd4a3-47e8-7e80-be5f-8009bfe04213'), (b'transfer-encoding', b'chunked'), (b'date', b'Tue, 28 Apr 2026 15:09:24 GMT')])
+2026-04-28T15:09:24.222219045Z [err]  15:09:24 [INFO] httpx — HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-2&language=hi&smart_format=true&punctuate=false "HTTP/1.1 200 OK"
+2026-04-28T15:09:24.222223195Z [err]  15:09:24 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:09:24.222226638Z [err]  15:09:24 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:09:24.222229735Z [err]  15:09:24 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:09:24.222233830Z [err]  15:09:24 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:09:24.222236902Z [err]  15:09:24 [INFO] agent — [STT] 'कर दो confirm.'
+2026-04-28T15:09:24.222240137Z [err]  15:09:24 [DEBUG] livekit.agents.pipeline — received user transcript
+2026-04-28T15:09:24.222243515Z [err]  15:09:24 [DEBUG] livekit.agents.pipeline — last language updated
+2026-04-28T15:09:24.222246502Z [err]  15:09:24 [DEBUG] livekit.agents.pipeline — validated agent reply
+2026-04-28T15:09:24.222251438Z [err]  15:09:24 [DEBUG] googleapiclient.discovery — URL being requested: POST https://www.googleapis.com/calendar/v3/calendars/dheerajarora242%40gmail.com/events?alt=json
+2026-04-28T15:09:24.223475351Z [inf]  [STT] 'कर दो confirm.'
+2026-04-28T15:09:24.223549667Z [err]  15:09:24 [INFO] agent — [STT] 'कर दो confirm.'
+2026-04-28T15:09:24.839104113Z [err]  15:09:24 [INFO] agent — [Agent] 'बिल्कुल! Maayka Sharma जी, 29 April (बुधवार) को 3:30 बजे appointment confirm हो गई। धन्यवाद!'
+2026-04-28T15:09:24.839111809Z [err]  15:09:24 [DEBUG] httpx — load_ssl_context verify=True cert=None trust_env=True http2=False
+2026-04-28T15:09:24.839197939Z [inf]  [Calendar] Event created: https://www.google.com/calendar/event?eid=ZDJkbDk5bG9rN3Bpdmk3OTJ0b2o0azkyZTAgZGhlZXJhamFyb3JhMjQyQG0
+2026-04-28T15:09:24.841080925Z [err]  15:09:24 [INFO] agent — [Agent] 'बिल्कुल! Maayka Sharma जी, 29 April (बुधवार) को 3:30 बजे appointment confirm हो गई। धन्यवाद!'
+2026-04-28T15:09:24.841085531Z [inf]  [Agent] 'बिल्कुल! Maayka Sharma जी, 29 April (बुधवार) को 3:30 बजे appointment confirm हो गई। धन्यवाद!'
+2026-04-28T15:09:24.841089831Z [err]  15:09:24 [DEBUG] httpx — load_verify_locations cafile='/opt/venv/lib/python3.12/site-packages/certifi/cacert.pem'
+2026-04-28T15:09:24.850199748Z [err]  15:09:24 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:24.850269117Z [err]  15:09:24 [DEBUG] httpcore.connection — connect_tcp.started host='www.fast2sms.com' port=443 local_address=None timeout=10 socket_options=None
+2026-04-28T15:09:24.850271723Z [err]  15:09:24 [INFO] agent — [Call] DONE state detected (poll fallback)
+2026-04-28T15:09:24.850274924Z [err]  15:09:24 [INFO] agent — [Call] DONE state detected (poll fallback)
+2026-04-28T15:09:24.850277746Z [inf]  [Call] DONE state detected (poll fallback)
+2026-04-28T15:09:24.850280536Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:24.850284356Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:09:24.850287049Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:09:24.850290128Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:09:24.926937865Z [err]  15:09:24 [DEBUG] httpcore.connection — connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf21ac10a0>
+2026-04-28T15:09:24.926943811Z [err]  15:09:24 [DEBUG] httpcore.connection — start_tls.started ssl_context=<ssl.SSLContext object at 0x7fcf21ab7dd0> server_hostname='www.fast2sms.com' timeout=10
+2026-04-28T15:09:24.935982045Z [err]  15:09:24 [DEBUG] httpcore.connection — start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fcf18768b30>
+2026-04-28T15:09:24.935986575Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:24.935989616Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_headers.complete
+2026-04-28T15:09:24.935992386Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_body.started request=<Request [b'POST']>
+2026-04-28T15:09:24.935995264Z [err]  15:09:24 [DEBUG] httpcore.http11 — send_request_body.complete
+2026-04-28T15:09:24.935998369Z [err]  15:09:24 [DEBUG] httpcore.http11 — receive_response_headers.started request=<Request [b'POST']>
+2026-04-28T15:09:25.350185492Z [err]  15:09:25 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:09:25 GMT'), (b'Content-Type', b'audio/x-wav'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'x-envoy-upstream-service-time', b'252'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains')])
+2026-04-28T15:09:25.350190153Z [err]  15:09:25 [INFO] httpx — HTTP Request: POST https://centralindia.tts.speech.microsoft.com/cognitiveservices/v1 "HTTP/1.1 200 OK"
+2026-04-28T15:09:25.350193566Z [err]  15:09:25 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:09:25.521074992Z [err]  15:09:25 [DEBUG] httpcore.http11 — receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 28 Apr 2026 15:09:25 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'100'), (b'Connection', b'keep-alive'), (b'Report-To', b'{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=sCU78ShT%2Bb6irXkjraKkpLd6pA6tCg1Ig1V5hCeaYAcDrdH1cIIJ7fcyAx2QkA35DiU7KIi6V9z6dJnop%2Bn%2FvPUryS8ZpCtMbOtZpMEhgpW8SV4cDD9MQrWStg7B5DHtSSRQ"}]}'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, PATCH, PUT, DELETE, OPTIONS'), (b'Access-Control-Allow-Headers', b'Origin, Content-Type, X-Auth-Token'), (b'Cache-Control', b'no-cache, private'), (b'set-cookie', b'XSRF-TOKEN=eyJpdiI6Iis0OE0yRFRZbmZ3UVBaS0NTT3h3S1E9PSIsInZhbHVlIjoiNkJmZERVYUJqWE5pNHlyNlVPYjhGeHRhaC81YVFhb1g4YnVsZGk1ek9uSEw4L3ljY1JCWk5ndkJCcitabGxDakF4Z1gyUU53Q0VwUDFSY2ZVcWdkS0RwQkFYMVRxWlg1MDk2N0R2NkR2d1ZGR09mbHY5MWl3a1J1djFQQW9VSWkiLCJtYWMiOiIwNzdmNmJmOWZkZGRhMGYyY2ZhYzAxMjI3MDNiNGI1NjU4ZDRmNTUwOTgzZmYzN2Q1NmUzMTFhN2I3Yzc2MDk2IiwidGFnIjoiIn0%3D; expires=Thu, 28 May 2026 15:09:25 GMT; Max-Age=2592000; path=/; samesite=lax; secure'), (b'set-cookie', b'laravel_session=eyJpdiI6InFlNktCU2tWd0kySU5TaWNaQ2JveXc9PSIsInZhbHVlIjoibStpNmdZT1ZMSEc5ZzBvM25IUkZMU0hHcmNpWW9rWC85d2ZUSDhuT1FhZ2JXYWpxTGJVYjljR3hwZEFBUFowSVVtc25Fb2pNY2JaM002aVpWZTY3cWZQS29ldWRHR2U1S2FHTktXTGQ4T0FDK2syRGdwRVBZakpDT2JuVVVkazEiLCJtYWMiOiI4N2NkNmQ5NmRkMGUxNTkwNWRmZDg2ZDU1Y2UyNzNkZGM2ZThlMzJkNTFmYzIwOGVlNjBmN2Q3MWM3YzdmZjFhIiwidGFnIjoiIn0%3D; expires=Thu, 28 May 2026 15:09:25 GMT; Max-Age=2592000; path=/; httponly; samesite=lax; secure'), (b'set-cookie', b'XQrNX7kgmEnFGt1CMEkifdrZQVZtBeeGQBvt7C90=eyJpdiI6IjVMYmhRaURrVW1JdFFjc2dRZm1KL2c9PSIsInZhbHVlIjoiZStoRU1QeDFBajhKSnFpVThJN25kcEZmQjFEYWZDTzVKN25mTDE0SmEvQkowUHUvd29oTno2UlJVRnBaU3V5ckQ2Yi9hSGs5NE40Q01jTndRVVJUWTFkaHZya2VZbWs0N0xQa3FSSm5MaGNJbTBBK09JNE1tL0VuR1BNNmhPVDVtc1dRQzY0SFNNQlFUcllFbEg3S0c0dy92OGJETDB2SUlja1dHNnVNLytOWEJUeHhKWGUvZ0pyN3N1S0t0NDRkRUdpZ0p6TEkyRXhoK0JKcGdpWTBzMHVsYVdLUmZBZUdpUnZmNStjajFiQ1pWcm1POTlDMUl4VW4zclB6bGhRNVZkamZmVEVlUWZhdE1VZDcwWjZuRFE9PSIsIm1hYyI6ImM4NjQ0NWZhODczMjc0MjQ5ZTA0ODU3MmI0NGY2ZjY2Nzg4NGU1ZTJhMDQ1MWU2MWNiN2I1YTA5MmI0MzVlNWEiLCJ0YWciOiIifQ%3D%3D; expires=Thu, 28 May 2026 15:09:25 GMT; Max-Age=2592000; path=/; httponly; samesite=lax; secure'), (b'Vary', b'Accept-Encoding,User-Agent,User-Agent'), (b'Nel', b'{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'), (b'Content-Encoding', b'gzip'), (b'Server', b'cloudflare'), (b'X-turbo-charged-by', b'LiteSpeed'), (b'cf-cache-status', b'DYNAMIC'), (b'Strict-Transport-Security', b'max-age=0'), (b'X-Content-Type-Options', b'nosniff'), (b'CF-RAY', b'9f36fce6d9d329a0-SJC')])
+2026-04-28T15:09:25.522990588Z [err]  15:09:25 [INFO] httpx — HTTP Request: POST https://www.fast2sms.com/dev/bulkV2 "HTTP/1.1 200 OK"
+2026-04-28T15:09:25.522995771Z [err]  15:09:25 [DEBUG] httpcore.http11 — receive_response_body.started request=<Request [b'POST']>
+2026-04-28T15:09:25.522998639Z [err]  15:09:25 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:09:25.523001255Z [err]  15:09:25 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:09:25.523003881Z [err]  15:09:25 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:09:25.523006762Z [err]  15:09:25 [DEBUG] httpcore.connection — close.started
+2026-04-28T15:09:25.523009167Z [err]  15:09:25 [DEBUG] httpcore.connection — close.complete
+2026-04-28T15:09:25.523011740Z [inf]  [SMS] Sent to +918556854513
+2026-04-28T15:09:26.230156969Z [err]  15:09:26 [DEBUG] httpcore.http11 — receive_response_body.complete
+2026-04-28T15:09:26.230163793Z [err]  15:09:26 [DEBUG] httpcore.http11 — response_closed.started
+2026-04-28T15:09:26.230167618Z [err]  15:09:26 [DEBUG] httpcore.http11 — response_closed.complete
+2026-04-28T15:09:26.230178617Z [err]  15:09:26 [DEBUG] livekit.agents.pipeline — speech playout started
+2026-04-28T15:09:34.868608145Z [err]  15:09:34 [INFO] agent — [Call] Fallback timeout — disconnecting room
+2026-04-28T15:09:34.868613993Z [err]  15:09:34 [INFO] agent — [Call] Fallback timeout — disconnecting room
+2026-04-28T15:09:34.868617566Z [inf]  [Call] Fallback timeout — disconnecting room
+2026-04-28T15:09:34.885852706Z [err]  15:09:34 [DEBUG] livekit — tungstenite::protocol:666:tungstenite::protocol - Received close frame: Some(CloseFrame { code: Normal, reason: "" })
+2026-04-28T15:09:34.888145071Z [err]  15:09:34 [DEBUG] livekit.agents — http_session(): creating a new httpclient ctx
+2026-04-28T15:09:34.888156959Z [err]  15:09:34 [DEBUG] livekit.agents — shutting down job task
+2026-04-28T15:09:34.888164458Z [err]  15:09:34 [INFO] livekit.agents — process exiting
+2026-04-28T15:09:34.888168742Z [inf]  process exiting
+2026-04-28T15:09:34.888172834Z [err]  15:09:34 [DEBUG] livekit.agents — http_session(): closing the httpclient ctx
