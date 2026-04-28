@@ -657,15 +657,14 @@ class ConversationManager:
             return _booking_failed()
 
     async def _send_sms_confirmation(self) -> None:
-        """Send booking confirmation SMS via Vobiz SMS API."""
+        """Send booking confirmation SMS via Fast2SMS Quick SMS API."""
         to_number = self.patient_phone
         if not to_number:
             return
 
-        api_key     = os.getenv("VOBIZ_API_KEY")
-        from_number = os.getenv("VOBIZ_SMS_FROM")   # Vobiz DID number e.g. +912250658785
-        if not all([api_key, from_number]):
-            print("[SMS] Skipped — VOBIZ_API_KEY / VOBIZ_SMS_FROM not set")
+        api_key = os.getenv("FAST2SMS_API_KEY")
+        if not api_key:
+            print("[SMS] Skipped — FAST2SMS_API_KEY not set")
             return
 
         import datetime as _dt
@@ -678,27 +677,38 @@ class ConversationManager:
         except Exception:
             human_date = self.date
 
-        body = (
+        message = (
             f"Dear {self.patient_name}, your appointment at {CLINIC_NAME} "
             f"is confirmed for {human_date} at {self.time}. "
             f"Doctor: {DOCTOR_NAME}. Thank you!"
         )
 
-        # TODO: replace URL and payload format once Vobiz SMS API endpoint is confirmed
-        url = "https://api.vobiz.ai/v1/sms/send"
+        # Strip leading + and country code prefix for Fast2SMS (expects 10-digit Indian number)
+        mobile = to_number.lstrip("+")
+        if mobile.startswith("91") and len(mobile) == 12:
+            mobile = mobile[2:]  # remove country code
+
         try:
             import httpx
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
-                    url,
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={"from": from_number, "to": to_number, "body": body},
+                    "https://www.fast2sms.com/dev/bulkV2",
+                    headers={
+                        "authorization": api_key,
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "route": "q",
+                        "message": message,
+                        "qnumbers": mobile,
+                    },
                     timeout=10,
                 )
-            if resp.status_code in (200, 201):
+            data = resp.json()
+            if data.get("return") is True:
                 print(f"[SMS] Sent to {to_number}")
             else:
-                print(f"[SMS] Failed ({resp.status_code}): {resp.text[:200]}")
+                print(f"[SMS] Failed: {data}")
         except Exception as e:
             print(f"[SMS] Error: {e}")
 
