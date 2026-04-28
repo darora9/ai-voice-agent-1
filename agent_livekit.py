@@ -188,7 +188,7 @@ class SarvamSTT(stt.STT):
         logger.info(f"[STT] {text!r}")
 
         # Drop transcripts that are too short or pure filler noise
-        if len(text) < 2:
+        if len(text) < 1:
             return _empty_speech_event()
 
         return stt.SpeechEvent(
