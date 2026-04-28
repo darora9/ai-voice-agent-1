@@ -590,17 +590,15 @@ async def entrypoint(ctx: JobContext):
 
     agent = VoicePipelineAgent(
         vad=silero.VAD.load(
-            min_speech_duration=0.1,      # default — catch short words like 'हाँ'
-            min_silence_duration=0.4,     # reasonable pause detection
-            activation_threshold=0.5,    # default — don't block real speech
+            min_speech_duration=0.1,   # catch short words like 'हाँ', 'ji'
+            min_silence_duration=0.4,  # 400ms silence = end of utterance
+            activation_threshold=0.5,  # default — balanced for phone audio
         ),
         stt=_stt,
         llm=ConversationLLM(conv),
         tts=_tts,
-        # 500 ms of silence = end of caller turn.
-        # Lower = faster response; higher = fewer false cuts on Hindi pauses.
-        min_endpointing_delay=0.8,
-        allow_interruptions=True,
+        min_endpointing_delay=0.4,     # 400ms after VAD end before sending to STT
+        allow_interruptions=True,      # let caller interrupt agent mid-speech
     )
 
     agent.start(ctx.room)
