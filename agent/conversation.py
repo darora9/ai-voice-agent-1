@@ -528,7 +528,7 @@ class ConversationManager:
         if _re.search(r'^(nahi|nahin|no|नहीं|नहि|ना|ਨਹੀਂ)[\.!।]?$', tl.strip()):
             if self.available_slots:
                 first, last = self.available_slots[0], self.available_slots[-1]
-                return f"{first} से {last} बजे के बीच में कौनसा समय ठीक रहेगा?"
+                return f"{_fmt_time(first)} से {_fmt_time(last)} बजे के बीच में कौनसा समय ठीक रहेगा?"
             self.state = State.WAIT_DATETIME
             return "कोई और दिन और समय बताएं।"
 
@@ -758,13 +758,13 @@ class ConversationManager:
                     self.time = ""
                     self.state = State.WAIT_SLOT_CHOICE
                     if next_slot:
-                        return f"{requested} बजे का समय निकल चुका है। अगला available slot {next_slot} बजे है — confirm करूँ?"
+                        return f"{_fmt_time(requested)} बजे का समय निकल चुका है। अगला available slot {_fmt_time(next_slot)} बजे है — confirm करूँ?"
                     else:
                         saved = self.date
                         self.date = ""
                         self.state = State.WAIT_DATETIME
                         ns = self.calendar.get_next_available_after(saved)
-                        ns_hint = f" अगला slot: {_human_date(ns['date'])} {ns['time']} बजे।" if ns else ""
+                        ns_hint = f" अगला slot: {_human_date(ns['date'])} {_fmt_time(ns['time'])} बजे।" if ns else ""
                         return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
                 else:
                     saved = self.date
@@ -772,7 +772,7 @@ class ConversationManager:
                     self.time = ""
                     self.state = State.WAIT_DATETIME
                     ns = self.calendar.get_next_available_after(saved)
-                    ns_hint = f" अगला slot: {_human_date(ns['date'])} {ns['time']} बजे।" if ns else ""
+                    ns_hint = f" अगला slot: {_human_date(ns['date'])} {_fmt_time(ns['time'])} बजे।" if ns else ""
                     return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
 
         if not slots:
@@ -937,11 +937,11 @@ class ConversationManager:
         human = _human_date(ns["date"])
         if book_intent:
             return (
-                f"अगला available slot {human} को {ns['time']} बजे है। "
+                f"अगला available slot {human} को {_fmt_time(ns['time'])} बजे है। "
                 "Confirm करूँ?"
             )
         return (
-            f"अगला available slot {human} को {ns['time']} बजे है। "
+            f"अगला available slot {human} को {_fmt_time(ns['time'])} बजे है। "
             "क्या इसे book करूँ?"
         )
 
@@ -1016,9 +1016,9 @@ class ConversationManager:
                     if next_slot:
                         self.time = ""
                         self.state = State.WAIT_SLOT_CHOICE
-                        return f"{query_time} बजे का समय निकल चुका है। अगला available slot {next_slot} बजे है — confirm करूँ?"
+                        return f"{_fmt_time(query_time)} बजे का समय निकल चुका है। अगला available slot {_fmt_time(next_slot)} बजे है — confirm करूँ?"
                 ns = self.calendar.get_next_available_after(query_date)
-                ns_hint = f" अगला slot: {_human_date(ns['date'])} {ns['time']} बजे।" if ns else ""
+                ns_hint = f" अगला slot: {_human_date(ns['date'])} {_fmt_time(ns['time'])} बजे।" if ns else ""
                 self.date = ""
                 self.state = State.WAIT_DATETIME
                 return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
@@ -1027,7 +1027,7 @@ class ConversationManager:
                 # Slot IS available — prime for confirmation
                 self.time = query_time
                 self.state = State.WAIT_CONFIRM
-                return f"{query_date} को {query_time} बजे का slot available है। क्या मैं यह book करूँ?"
+                return f"{_human_date(query_date)} को {_fmt_time(query_time)} बजे का slot available है। क्या मैं यह book करूँ?"
             before, after = _nearby_slots(query_time, slots)
             # Slot not available — prime for slot choice
             self.time = query_time
