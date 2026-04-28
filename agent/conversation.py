@@ -700,7 +700,9 @@ class ConversationManager:
                     json={
                         "route": "q",
                         "message": message,
-                        "qnumbers": mobile,
+                        "language": "english",
+                        "flash": 0,
+                        "numbers": mobile,
                     },
                     timeout=10,
                 )
