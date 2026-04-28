@@ -190,7 +190,7 @@ class DeepgramSTT(stt.STT):
             alts = data.get("results", {}).get("channels", [{}])[0].get("alternatives", [{}])
             alt = alts[0] if alts else {}
             confidence = alt.get("confidence", 1.0)
-            text = alt.get("transcript", "").strip() if confidence >= 0.6 else ""
+            text = alt.get("transcript", "").strip()
         except Exception as e:
             logger.error(f"[DeepgramSTT Error] {e}")
             text = ""
