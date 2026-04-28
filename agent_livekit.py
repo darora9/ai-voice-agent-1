@@ -186,6 +186,11 @@ class SarvamSTT(stt.STT):
             text = ""
 
         logger.info(f"[STT] {text!r}")
+
+        # Drop transcripts that are too short or pure filler noise
+        if len(text) < 2:
+            return _empty_speech_event()
+
         return stt.SpeechEvent(
             type=stt.SpeechEventType.FINAL_TRANSCRIPT,
             alternatives=[stt.SpeechData(language="hi-IN", text=text)],
@@ -483,13 +488,17 @@ async def entrypoint(ctx: JobContext):
         logger.info("[TTS] Using Sarvam (Azure key not set)")
 
     agent = VoicePipelineAgent(
-        vad=silero.VAD.load(),
+        vad=silero.VAD.load(
+            min_speech_duration=0.2,      # ignore very short noise bursts
+            min_silence_duration=0.6,     # require 600ms silence before end-of-speech
+            activation_threshold=0.65,    # higher = less noise-sensitive (default 0.5)
+        ),
         stt=SarvamSTT(),
         llm=ConversationLLM(conv),
         tts=_tts,
         # 500 ms of silence = end of caller turn.
         # Lower = faster response; higher = fewer false cuts on Hindi pauses.
-        min_endpointing_delay=0.3,
+        min_endpointing_delay=0.8,
         allow_interruptions=True,
     )
 
