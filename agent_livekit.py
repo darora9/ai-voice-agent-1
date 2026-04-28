@@ -559,15 +559,21 @@ async def entrypoint(ctx: JobContext):
     # Wait for the SIP participant (Vobiz caller) to join the room
     participant = await ctx.wait_for_participant()
 
-    # Vobiz SIP attributes — try several known keys
-    attrs         = participant.attributes or {}
-    caller_number = (
+    # Vobiz SIP attributes — log all keys for debugging, then extract caller number
+    attrs = participant.attributes or {}
+    logger.info(f"[SIP] Raw attributes: {dict(attrs)}")
+    raw_from = (
         attrs.get("sip.from")
         or attrs.get("sip.callerNumber")
         or attrs.get("sip.callerid")
         or attrs.get("X-Caller-Number")
+        or attrs.get("from")
         or ""
     )
+    # Handle SIP URI format: sip:+919876543210@domain.com → +919876543210
+    import re as _re
+    _m = _re.search(r'(?:sip:|tel:)([+\d]+)', raw_from)
+    caller_number = _m.group(1) if _m else raw_from
     logger.info(f"[Call] room={ctx.room.name!r}  caller={caller_number!r}")
 
     conv = ConversationManager(caller_phone=caller_number)
@@ -608,18 +614,22 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"[Greeting] {greeting!r}")
     await agent.say(greeting, allow_interruptions=False)
 
-    # Poll for DONE state, then disconnect after TTS generation + playout
+    # Disconnect right after the final speech finishes playing
+    _speech_after_done = asyncio.Event()
+
+    @agent.on("agent_speech_committed")
+    def _on_agent_speech_committed(*_):
+        if conv.state == State.DONE:
+            _speech_after_done.set()
+
     async def _watch_done():
-        while True:
-            await asyncio.sleep(0.5)
-            if conv.state == State.DONE:
-                await asyncio.sleep(15.0)
-                logger.info("[Call] Booking complete — disconnecting room")
-                try:
-                    await ctx.room.disconnect()
-                except Exception:
-                    pass
-                return
+        await _speech_after_done.wait()
+        await asyncio.sleep(1.0)  # 1-second buffer after final word
+        logger.info("[Call] Booking complete — disconnecting room")
+        try:
+            await ctx.room.disconnect()
+        except Exception:
+            pass
 
     asyncio.create_task(_watch_done())
 
