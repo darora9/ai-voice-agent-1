@@ -608,7 +608,7 @@ async def entrypoint(ctx: JobContext):
         llm=ConversationLLM(conv),
         tts=_tts,
         min_endpointing_delay=0.6,     # 600ms after VAD end — balance latency vs noise
-        allow_interruptions=True,     # barge-in off — shorter TTS = acceptable latency
+        allow_interruptions=True,      # barge-in on
     )
 
     agent.start(ctx.room)
