@@ -633,7 +633,31 @@ class ConversationManager:
                 self.state = State.WAIT_DATETIME
                 return "ठीक है। कोई और दिन और समय बताएं।"
 
-        # Ambiguous — re-confirm
+        # Ambiguous — but caller may have asked for a different time (e.g. "साढ़े बारह हो जाएगा?")
+        dt = await self._extract_datetime(text)
+        new_date = dt.get("date")
+        new_time = dt.get("time")
+
+        if new_time and not _has_time_qualifier(text):
+            try:
+                h, m = map(int, new_time.split(":"))
+                if h < 7:
+                    new_time = f"{h + 12:02d}:{m:02d}"
+            except Exception:
+                pass
+
+        if new_date and new_date != self.date:
+            if self._is_past_date(new_date):
+                return "यह तारीख़ गुज़र चुकी है। कृपया आज या आने वाली तारीख़ बताएं।"
+            self.date = new_date
+            self.time = new_time or ""
+            return await self._check_slot()
+        elif new_time and new_time != self.time:
+            # Caller is asking for a different time — switch to it
+            self.time = new_time
+            return await self._check_slot()
+
+        # Truly ambiguous — re-confirm
         return f"{self.patient_name} जी, {_human_date(self.date)} को {_fmt_time(self.time)} बजे — क्या confirm करूँ?"
 
     async def _book_now(self) -> str:
