@@ -174,8 +174,8 @@ class DeepgramSTT(stt.STT):
             resp = await self._http.post(
                 "https://api.deepgram.com/v1/listen",
                 params={
-                    "model":        "nova-2",
-                    "language":     "hi",
+                    "model":        "nova-3",
+                    "language":     "multi",
                     "smart_format": "true",
                     "punctuate":    "false",
                 },
@@ -188,12 +188,15 @@ class DeepgramSTT(stt.STT):
             resp.raise_for_status()
             data = resp.json()
             alts = data.get("results", {}).get("channels", [{}])[0].get("alternatives", [{}])
-            text = alts[0].get("transcript", "").strip() if alts else ""
+            alt = alts[0] if alts else {}
+            confidence = alt.get("confidence", 1.0)
+            text = alt.get("transcript", "").strip() if confidence >= 0.6 else ""
         except Exception as e:
             logger.error(f"[DeepgramSTT Error] {e}")
             text = ""
+            confidence = 0.0
 
-        logger.info(f"[STT] {text!r}")
+        logger.info(f"[STT] {text!r} (conf={confidence:.2f})")
         if not text:
             return _empty_speech_event()
 
