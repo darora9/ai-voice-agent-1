@@ -563,7 +563,8 @@ async def entrypoint(ctx: JobContext):
     attrs = participant.attributes or {}
     logger.info(f"[SIP] Raw attributes: {dict(attrs)}")
     raw_from = (
-        attrs.get("sip.from")
+        attrs.get("sip.phoneNumber")   # LiveKit SIP standard key
+        or attrs.get("sip.from")
         or attrs.get("sip.callerNumber")
         or attrs.get("sip.callerid")
         or attrs.get("X-Caller-Number")
@@ -614,17 +615,35 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"[Greeting] {greeting!r}")
     await agent.say(greeting, allow_interruptions=False)
 
-    # Disconnect right after the final speech finishes playing
+    # Disconnect after final speech finishes playing.
+    # agent_speech_committed fires when TTS audio is committed to playout buffer.
+    # We wait 4s after that (covers ~3s of spoken audio) before hanging up.
     _speech_after_done = asyncio.Event()
 
     @agent.on("agent_speech_committed")
     def _on_agent_speech_committed(*_):
         if conv.state == State.DONE:
+            logger.info("[Call] Final speech committed — will disconnect in 4s")
             _speech_after_done.set()
 
     async def _watch_done():
-        await _speech_after_done.wait()
-        await asyncio.sleep(1.0)  # 1-second buffer after final word
+        # Primary: wait for speech_committed event
+        # Fallback: if event never fires, poll every 0.5s and disconnect 6s after DONE
+        done_at = None
+        while not _speech_after_done.is_set():
+            await asyncio.sleep(0.5)
+            if conv.state == State.DONE:
+                if done_at is None:
+                    done_at = asyncio.get_event_loop().time()
+                    logger.info("[Call] DONE state detected (poll fallback)")
+                elif asyncio.get_event_loop().time() - done_at > 6.0:
+                    logger.info("[Call] Fallback timeout — disconnecting room")
+                    try:
+                        await ctx.room.disconnect()
+                    except Exception:
+                        pass
+                    return
+        await asyncio.sleep(4.0)  # wait for TTS audio to finish playing
         logger.info("[Call] Booking complete — disconnecting room")
         try:
             await ctx.room.disconnect()
