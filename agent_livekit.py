@@ -607,7 +607,7 @@ async def entrypoint(ctx: JobContext):
         stt=_stt,
         llm=ConversationLLM(conv),
         tts=_tts,
-        min_endpointing_delay=0.8,     # 800ms after VAD end — filters short noise bursts
+        min_endpointing_delay=0.6,     # 600ms after VAD end — balance latency vs noise
         allow_interruptions=True,     # barge-in off — shorter TTS = acceptable latency
     )
 
