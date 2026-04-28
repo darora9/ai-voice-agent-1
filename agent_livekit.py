@@ -590,9 +590,9 @@ async def entrypoint(ctx: JobContext):
 
     agent = VoicePipelineAgent(
         vad=silero.VAD.load(
-            min_speech_duration=0.2,      # ignore very short noise bursts
-            min_silence_duration=0.6,     # require 600ms silence before end-of-speech
-            activation_threshold=0.65,    # higher = less noise-sensitive (default 0.5)
+            min_speech_duration=0.1,      # default — catch short words like 'हाँ'
+            min_silence_duration=0.4,     # reasonable pause detection
+            activation_threshold=0.5,    # default — don't block real speech
         ),
         stt=_stt,
         llm=ConversationLLM(conv),
