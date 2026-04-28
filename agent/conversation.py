@@ -193,7 +193,8 @@ class ConversationManager:
 
     async def process_turn(self, user_input: str) -> str:
         user_input = user_input.strip()
-        if not user_input:
+        # Skip empty or single-character noise artifacts
+        if len(user_input.strip("।.!?,")) <= 1:
             return ""
 
         if self.state == State.WAIT_NAME:
