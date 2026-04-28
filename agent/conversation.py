@@ -70,16 +70,20 @@ def _human_date(date_iso: str) -> str:
         return date_iso
 
 def _greeting_with_hours(name: str) -> str:
-    return f"{name} जी, {CLINIC_HOURS} appointment है। कौन सा दिन और समय?"
+    return (
+        f"{name} जी, नमस्ते! "
+        f"Clinic का समय: {CLINIC_HOURS}. "
+        "आप किस दिन और समय appointment लेना चाहेंगे?"
+    )
 
 def _ask_time(date: str) -> str:
-    return f"{_human_date(date)}। किस समय?"
+    return f"{_human_date(date)} ठीक है। किस समय आना चाहेंगे?"
 
 def _ask_date(time: str) -> str:
-    return f"{_fmt_time(time)} बजे। कौन सा दिन?"
+    return f"{_fmt_time(time)} बजे ठीक है। कौनसा दिन आना चाहेंगे?"
 
 def _slot_available_confirm(name: str, date: str, time: str) -> str:
-    return f"{_human_date(date)} {_fmt_time(time)} बजे available है। Confirm?"
+    return f"{name} जी, {_human_date(date)} को {_fmt_time(time)} बजे slot available है। Confirm करूँ?"
 
 def _nearby_slots(requested: str, available: list) -> tuple[str | None, str | None]:
     """Return (slot_before, slot_after) closest to requested time from available list."""
@@ -110,10 +114,16 @@ def _has_time_qualifier(text: str) -> bool:
 
 
 def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | None) -> str:
-    parts = [_fmt_time(s) for s in [before, after] if s]
-    if parts:
-        return f"{_fmt_time(time)} बजे नहीं है। {' या '.join(parts)} बजे?"
-    return f"{_fmt_time(time)} बजे नहीं है। और समय बताएं।"
+    parts = []
+    if before:
+        parts.append(before)
+    if after:
+        parts.append(after)
+    nearby_str = " और ".join(parts) if parts else None
+    if nearby_str:
+        nearby_str = " और ".join(_fmt_time(s) for s in parts)
+        return f"{_fmt_time(time)} बजे slot नहीं है। पास में: {nearby_str} बजे। कौनसा ठीक रहेगा?"
+    return f"{_fmt_time(time)} बजे slot नहीं है। कोई और समय बताएं।"
 
 
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
@@ -126,12 +136,12 @@ def _slot_taken(date: str, time: str, suggestions: list) -> str:
 
 def _no_slots_on_date(date: str, is_today: bool = False, next_slot: dict | None = None) -> str:
     next_hint = (
-        f" {_human_date(next_slot['date'])} {_fmt_time(next_slot['time'])} बजे available है।"
+        f" अगला available slot: {_human_date(next_slot['date'])} {_fmt_time(next_slot['time'])} बजे।"
         if next_slot else ""
     )
     if is_today:
-        return f"आज slot नहीं है।{next_hint} और दिन बताएं।"
-    return f"{_human_date(date)} slot नहीं है।{next_hint} और तारीख़ बताएं।"
+        return f"आज कोई slot नहीं है।{next_hint} कोई और दिन बताएं।"
+    return f"{_human_date(date)} को कोई slot नहीं है।{next_hint} कोई और तारीख़ बताएं।"
 
 def _booking_confirmed(name: str, date: str, time: str) -> str:
     import datetime as _dt
@@ -143,13 +153,18 @@ def _booking_confirmed(name: str, date: str, time: str) -> str:
         human_date = f"{d.day} {month_names[d.month-1]} ({day_names[d.weekday()]})"
     except Exception:
         human_date = date
-    return f"{name} जी, {human_date} {_fmt_time(time)} बजे confirm। धन्यवाद!"
+    return (
+        f"बिल्कुल! {name} जी, {human_date} को {_fmt_time(time)} बजे appointment confirm हो गई। धन्यवाद!"
+    )
 
 def _booking_failed() -> str:
-    return "Booking नहीं हो पाई। दोबारा तारीख़ और समय बताएं।"
+    return "माफ़ी चाहते हैं, booking नहीं हो पाई। दोबारा तारीख़ और समय बताएं।"
 
 
-GREETING = f"नमस्ते! {CLINIC_NAME}। अपना नाम बताएं।"
+GREETING = (
+    f"नमस्ते! {CLINIC_NAME} में आपका स्वागत है। "
+    "अपना नाम बताएं।"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -230,10 +245,10 @@ class ConversationManager:
     async def _handle_name(self, text: str) -> str:
         name = await self._extract_name(text)
         if not name:
-            return "कृपया अपना नाम बताएं।"
+            return "माफ़ी चाहते हैं, कृपया अपना पूरा नाम बताएं।"
         self.patient_name = name
         self.state = State.WAIT_NAME_CONFIRM
-        return f"{name}? सही है?"
+        return f"{name} — क्या मैं आपका नाम सही ले रही हूँ?"
 
     async def _handle_name_confirm(self, text: str) -> str:
         tl = text.lower().strip()
@@ -245,10 +260,10 @@ class ConversationManager:
             if corrected and corrected.lower() != self.patient_name.lower():
                 self.patient_name = corrected
                 self.state = State.WAIT_NAME_CONFIRM
-                return f"{corrected}? सही है?"
+                return f"{corrected} — क्या मैं आपका नाम सही ले रही हूँ?"
             self.patient_name = ""
             self.state = State.WAIT_NAME
-            return "सही नाम बताएं।"
+            return "कृपया अपना सही नाम बताएं।"
 
         _affirm = ("yes", "haan", "ha", "हाँ", "हां", "ji", "जी", "bilkul", "sahi",
                    "सही", "correct", "theek", "ठीक", "ਹਾਂ", "ਹਾਂਜੀ", "ਜੀ", "ਸਹੀ", "ਠੀਕ", "ਬਿਲਕੁਲ")
@@ -278,7 +293,7 @@ class ConversationManager:
 
         if is_affirm:
             self.state = State.WAIT_CITY
-            return "शहर?"
+            return "आप किस शहर से हैं?"
 
         # Caller may have corrected the name directly
         corrected = await self._extract_name(text)
@@ -289,7 +304,7 @@ class ConversationManager:
 
         # Treat anything else as confirmation
         self.state = State.WAIT_CITY
-        return "शहर?"
+        return "आप किस शहर से हैं?"
 
     async def _handle_city(self, text: str) -> str:
         _filler = ("theek", "thik", "okay", "ok", "haan", "ji", "ha ", "ठीक", "हाँ", "जी", "हां")
@@ -425,7 +440,7 @@ class ConversationManager:
         tl = text.lower()
         if any(kw in tl for kw in ("कौन से दिन", "कौनसे दिन", "kaun se din", "kaunse din", "kon se din",
                                     "ਕਿਹੜੇ ਦਿਨ", "ਕਿਹੜਾ ਦਿਨ", "ਕਿਹੜੇ ਦਿਨਾਂ")):
-            return f"{CLINIC_HOURS}। कौन सा दिन?"
+            return f"हम Monday से Saturday, {CLINIC_HOURS} तक available हैं। किस दिन आना चाहेंगे?"
         dt = await self._extract_datetime(text)
         date = dt.get("date")
         if not date:
@@ -446,7 +461,7 @@ class ConversationManager:
             "kab aayenge", "kab available", "kitne baje", "timing", "time kya",
             "कितने बजे", "कब आएंगे", "कब available", "क्या समय", "टाइमिंग"
         )):
-            return f"{CLINIC_HOURS}। कौन सा समय?"
+            return f"Clinic का समय {CLINIC_HOURS} है। आप किस समय आना चाहेंगे?"
 
         # "कोई भी" / "जो भी available हो" — pick first available slot
         if any(kw in tl for kw in ("koi bhi", "jo bhi", "kuch bhi", "any", "कोई भी", "जो भी", "कुछ भी", "ਕੋਈ ਵੀ")):
