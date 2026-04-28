@@ -84,6 +84,9 @@ _AZURE_SPEECH_KEY    = os.getenv("AZURE_SPEECH_KEY", "")
 _AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "eastus")
 _AZURE_TTS_VOICE     = os.getenv("AZURE_TTS_VOICE", "hi-IN-SwaraNeural")
 
+# Deepgram STT config
+_DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
+
 # Shared HTTP client — keeps TLS connections alive across STT + TTS calls
 _http = httpx.AsyncClient(
     timeout=15,
@@ -111,6 +114,96 @@ def _start_health_server():
     server = HTTPServer(("0.0.0.0", port), _HealthHandler)
     logger.info(f"[Health] Listening on :{port}")
     server.serve_forever()
+
+
+# ---------------------------------------------------------------------------
+# Deepgram nova-2 — STT plugin (REST, no native SDK)
+# ---------------------------------------------------------------------------
+
+class DeepgramSTT(stt.STT):
+    """
+    Wraps Deepgram nova-2 REST API as a LiveKit STT plugin.
+    Better noise handling than Sarvam for phone audio.
+    Supports Hindi + English codemix via language=hi.
+    """
+
+    def __init__(self):
+        super().__init__(
+            capabilities=stt.STTCapabilities(
+                streaming=False,
+                interim_results=False,
+            )
+        )
+        self._http = _http
+
+    async def _recognize_impl(
+        self,
+        buffer,
+        *,
+        language=None,
+        conn_options=None,
+    ) -> stt.SpeechEvent:
+        if isinstance(buffer, rtc.AudioFrame):
+            frames: list = [buffer]
+        else:
+            frames = list(buffer) if buffer else []
+
+        if not frames:
+            return _empty_speech_event()
+
+        sample_rate = frames[0].sample_rate
+        num_channels = frames[0].num_channels
+        raw_pcm = b"".join(bytes(f.data) for f in frames)
+
+        if num_channels > 1:
+            raw_pcm = audioop.tomono(raw_pcm, 2, 0.5, 0.5)
+
+        # Deepgram works best at 16kHz
+        if sample_rate != 16000:
+            raw_pcm, _ = audioop.ratecv(raw_pcm, 2, 1, sample_rate, 16000, None)
+
+        wav_buf = io.BytesIO()
+        with wave.open(wav_buf, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframes(raw_pcm)
+        wav_buf.seek(0)
+
+        try:
+            resp = await self._http.post(
+                "https://api.deepgram.com/v1/listen",
+                params={
+                    "model":        "nova-2",
+                    "language":     "hi",
+                    "smart_format": "true",
+                    "punctuate":    "false",
+                },
+                headers={
+                    "Authorization": f"Token {_DEEPGRAM_API_KEY}",
+                    "Content-Type":  "audio/wav",
+                },
+                content=wav_buf.read(),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            alts = data.get("results", {}).get("channels", [{}])[0].get("alternatives", [{}])
+            text = alts[0].get("transcript", "").strip() if alts else ""
+        except Exception as e:
+            logger.error(f"[DeepgramSTT Error] {e}")
+            text = ""
+
+        logger.info(f"[STT] {text!r}")
+        if not text:
+            return _empty_speech_event()
+
+        return stt.SpeechEvent(
+            type=stt.SpeechEventType.FINAL_TRANSCRIPT,
+            alternatives=[stt.SpeechData(language="hi", text=text)],
+        )
+
+    def stream(self, *, language=None, conn_options=None):
+        raise NotImplementedError("DeepgramSTT batch mode does not support streaming")
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +572,14 @@ async def entrypoint(ctx: JobContext):
 
     conv = ConversationManager(caller_phone=caller_number)
 
+    # Use Deepgram STT if key is configured, otherwise fall back to Sarvam
+    if _DEEPGRAM_API_KEY:
+        _stt = DeepgramSTT()
+        logger.info("[STT] Using Deepgram nova-2 (hi)")
+    else:
+        _stt = SarvamSTT()
+        logger.info("[STT] Using Sarvam saaras:v3 (Deepgram key not set)")
+
     # Use Azure TTS if key is configured, otherwise fall back to Sarvam
     if _AZURE_SPEECH_KEY:
         _tts = AzureTTS()
@@ -493,7 +594,7 @@ async def entrypoint(ctx: JobContext):
             min_silence_duration=0.6,     # require 600ms silence before end-of-speech
             activation_threshold=0.65,    # higher = less noise-sensitive (default 0.5)
         ),
-        stt=SarvamSTT(),
+        stt=_stt,
         llm=ConversationLLM(conv),
         tts=_tts,
         # 500 ms of silence = end of caller turn.
