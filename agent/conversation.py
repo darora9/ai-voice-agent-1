@@ -1175,8 +1175,8 @@ class ConversationManager:
                             "'raat'/'रात'/'ਰਾਤ'=night (add 12 if hour<8). "
                             "No qualifier: if hour 1-8 assume PM (add 12). If hour 9-12 assume AM. "
                             "'baje'/'बजे'/'bje' means o'clock. Examples: '2 bje'->14:00, '3 बजे'->15:00, '10 बजे'->10:00. "
-                            "'dedh'/'डेढ़'=1:30 (always 13:30, i.e. 1:30 PM). "
-                            "'sawa'/'सवा'=+15min (सवा 3=3:15), 'saadhe'/'साढ़े'=+30min (साढ़े 3=3:30). "
+                            "'dedh'/'डेढ़'=1:30 (always 13:30, i.e. 1:30 PM). 'dhai'/'ढाई'=2:30 (always 14:30, i.e. 2:30 PM). "
+                            "'sawa'/'सवा'=+15min (सवा 3=15:15, सवा 4=16:15), 'saadhe'/'साढ़े'=+30min (साढ़े 3=15:30, साढ़े 4=16:30). "
                             f"Examples using today={today}: "
                             f"'kal shaam 5 baje'->" + '{"date":"' + tomorrow + '","time":"17:00"}, '
                             f"'parso shaam 5 bje'->" + '{"date":"' + day_after + '","time":"17:00"}, '
