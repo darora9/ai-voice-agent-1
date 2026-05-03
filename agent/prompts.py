@@ -5,7 +5,7 @@ System prompts for the doctor appointment booking agent.
 import os
 from datetime import datetime, timezone, timedelta
 
-DOCTOR_NAME = os.getenv("DOCTOR_NAME", "Dr. Sharma")
+DOCTOR_NAME = os.getenv("DOCTOR_NAME", "Dr. Ajay Gupta")
 CLINIC_NAME = os.getenv("CLINIC_NAME", "Aisha Hospital")
 CLINIC_HOURS = os.getenv("CLINIC_HOURS", "9 AM to 6 PM, Monday to Saturday")
 
