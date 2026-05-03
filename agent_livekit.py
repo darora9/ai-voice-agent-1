@@ -36,7 +36,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import httpx
 from dotenv import load_dotenv
 
-from livekit import rtc
+from livekit import rtc, api as lkapi
 from livekit.agents import (
     AutoSubscribe,
     JobContext,
@@ -641,14 +641,18 @@ async def entrypoint(ctx: JobContext):
                 elif asyncio.get_event_loop().time() - done_at > 20.0:
                     logger.info("[Call] Fallback timeout — disconnecting room")
                     try:
-                        await ctx.room.disconnect()
+                        lk = lkapi.LiveKitAPI()
+                        await lk.room.delete_room(lkapi.DeleteRoomRequest(room=ctx.room.name))
+                        await lk.aclose()
                     except Exception:
                         pass
                     return
         await asyncio.sleep(1.0)  # 1s buffer after playout ends
         logger.info("[Call] Booking complete — disconnecting room")
         try:
-            await ctx.room.disconnect()
+            lk = lkapi.LiveKitAPI()
+            await lk.room.delete_room(lkapi.DeleteRoomRequest(room=ctx.room.name))
+            await lk.aclose()
         except Exception:
             pass
 
