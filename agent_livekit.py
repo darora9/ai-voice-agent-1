@@ -584,10 +584,21 @@ async def entrypoint(ctx: JobContext):
             allow_interruptions=False,
         )
         busy_agent.start(ctx.room)
+        _busy_done = asyncio.Event()
+
+        @busy_agent.on("agent_stopped_speaking")
+        def _on_busy_stopped(*_):
+            _busy_done.set()
+
         await busy_agent.say(
             "क्षमा करें, अभी लाइन व्यस्त है। कृपया कुछ देर बाद कोशिश करें। धन्यवाद।",
             allow_interruptions=False,
         )
+        # Wait for playout to finish (max 15s), then 1s buffer before hanging up
+        try:
+            await asyncio.wait_for(_busy_done.wait(), timeout=15.0)
+        except asyncio.TimeoutError:
+            pass
         await asyncio.sleep(1.0)
         try:
             lk = lkapi.LiveKitAPI()
