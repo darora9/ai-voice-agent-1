@@ -556,120 +556,155 @@ class ConvStream(llm.LLMStream):
 # Per-call entrypoint
 # ---------------------------------------------------------------------------
 
+# Track whether a call is already in progress (one-at-a-time enforcement)
+_active_call = False
+
 async def entrypoint(ctx: JobContext):
+    global _active_call
+
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
     # Wait for the SIP participant (Vobiz caller) to join the room
     participant = await ctx.wait_for_participant()
 
-    # Vobiz SIP attributes — log all keys for debugging, then extract caller number
-    attrs = participant.attributes or {}
-    logger.info(f"[SIP] Raw attributes: {dict(attrs)}")
-    raw_from = (
-        attrs.get("sip.phoneNumber")   # LiveKit SIP standard key
-        or attrs.get("sip.from")
-        or attrs.get("sip.callerNumber")
-        or attrs.get("sip.callerid")
-        or attrs.get("X-Caller-Number")
-        or attrs.get("from")
-        or ""
-    )
-    # Handle SIP URI format: sip:+919876543210@domain.com → +919876543210
-    import re as _re
-    _m = _re.search(r'(?:sip:|tel:)([+\d]+)', raw_from)
-    caller_number = _m.group(1) if _m else raw_from
-    logger.info(f"[Call] room={ctx.room.name!r}  caller={caller_number!r}")
-
-    conv = ConversationManager(caller_phone=caller_number)
-
-    # Use Deepgram STT if key is configured, otherwise fall back to Sarvam
-    if _DEEPGRAM_API_KEY:
-        _stt = DeepgramSTT()
-        logger.info("[STT] Using Deepgram nova-2 (hi)")
-    else:
-        _stt = SarvamSTT()
-        logger.info("[STT] Using Sarvam saaras:v3 (Deepgram key not set)")
-
-    # Use Azure TTS if key is configured, otherwise fall back to Sarvam
-    if _AZURE_SPEECH_KEY:
-        _tts = AzureTTS()
-        logger.info(f"[TTS] Using Azure ({_AZURE_TTS_VOICE})")
-    else:
-        _tts = SarvamTTS()
-        logger.info("[TTS] Using Sarvam (Azure key not set)")
-
-    agent = VoicePipelineAgent(
-        vad=silero.VAD.load(
-            min_speech_duration=0.1,   # catch short words like 'हाँ', 'ji'
-            min_silence_duration=0.4,  # 400ms silence = end of utterance
-            activation_threshold=0.5,  # default — balanced for phone audio
-        ),
-        stt=_stt,
-        llm=ConversationLLM(conv),
-        tts=_tts,
-        min_endpointing_delay=0.4,     # 400ms after VAD end
-        allow_interruptions=False,     # barge-in off
-    )
-
-    agent.start(ctx.room)
-
-    # Play greeting immediately; block interruptions until it finishes
-    greeting = conv.get_greeting()
-    logger.info(f"[Greeting] {greeting!r}")
-    await agent.say(greeting, allow_interruptions=False)
-
-    # Disconnect after final speech finishes playing.
-    # agent_stopped_speaking fires when playout ends — safe to hang up immediately.
-    _speech_after_done = asyncio.Event()
-
-    @agent.on("agent_stopped_speaking")
-    def _on_agent_stopped_speaking(*_):
-        if conv.state == State.DONE:
-            logger.info("[Call] Final speech finished — disconnecting in 1s")
-            _speech_after_done.set()
-
-    async def _watch_done():
-        # Primary: wait for agent_stopped_speaking event after DONE
-        # Fallback: if event never fires, disconnect 10s after DONE state is set
-        done_at = None
-        while not _speech_after_done.is_set():
-            await asyncio.sleep(0.5)
-            if conv.state == State.DONE:
-                if done_at is None:
-                    done_at = asyncio.get_event_loop().time()
-                    logger.info("[Call] DONE state detected (poll fallback)")
-                elif asyncio.get_event_loop().time() - done_at > 20.0:
-                    logger.info("[Call] Fallback timeout — disconnecting room")
-                    try:
-                        lk = lkapi.LiveKitAPI()
-                        await lk.room.delete_room(lkapi.DeleteRoomRequest(room=ctx.room.name))
-                        await lk.aclose()
-                    except Exception:
-                        pass
-                    return
-        await asyncio.sleep(1.0)  # 1s buffer after playout ends
-        logger.info("[Call] Booking complete — disconnecting room")
+    # --- Busy rejection: only one call at a time ---
+    if _active_call:
+        logger.info("[Call] Already busy — rejecting new caller")
+        busy_tts = AzureTTS() if _AZURE_SPEECH_KEY else SarvamTTS()
+        busy_agent = VoicePipelineAgent(
+            vad=silero.VAD.load(),
+            stt=SarvamSTT(),   # dummy, won't be used
+            llm=ConversationLLM(ConversationManager()),
+            tts=busy_tts,
+            allow_interruptions=False,
+        )
+        busy_agent.start(ctx.room)
+        await busy_agent.say(
+            "क्षमा करें, अभी लाइन व्यस्त है। कृपया कुछ देर बाद कोशिश करें। धन्यवाद।",
+            allow_interruptions=False,
+        )
+        await asyncio.sleep(1.0)
         try:
             lk = lkapi.LiveKitAPI()
             await lk.room.delete_room(lkapi.DeleteRoomRequest(room=ctx.room.name))
             await lk.aclose()
         except Exception:
             pass
+        return
 
-    asyncio.create_task(_watch_done())
+    _active_call = True
+    try:
+        # Vobiz SIP attributes — log all keys for debugging, then extract caller number
+        attrs = participant.attributes or {}
+        logger.info(f"[SIP] Raw attributes: {dict(attrs)}")
+        raw_from = (
+            attrs.get("sip.phoneNumber")   # LiveKit SIP standard key
+            or attrs.get("sip.from")
+            or attrs.get("sip.callerNumber")
+            or attrs.get("sip.callerid")
+            or attrs.get("X-Caller-Number")
+            or attrs.get("from")
+            or ""
+        )
+        # Handle SIP URI format: sip:+919876543210@domain.com → +919876543210
+        import re as _re
+        _m = _re.search(r'(?:sip:|tel:)([+\d]+)', raw_from)
+        caller_number = _m.group(1) if _m else raw_from
+        logger.info(f"[Call] room={ctx.room.name!r}  caller={caller_number!r}")
 
-    call_ended = asyncio.Event()
+        conv = ConversationManager(caller_phone=caller_number)
 
-    @ctx.room.on("participant_disconnected")
-    def _on_participant_disconnected(p):
-        if p.identity == participant.identity:
+        # Use Deepgram STT if key is configured, otherwise fall back to Sarvam
+        if _DEEPGRAM_API_KEY:
+            _stt = DeepgramSTT()
+            logger.info("[STT] Using Deepgram nova-2 (hi)")
+        else:
+            _stt = SarvamSTT()
+            logger.info("[STT] Using Sarvam saaras:v3 (Deepgram key not set)")
+
+        # Use Azure TTS if key is configured, otherwise fall back to Sarvam
+        if _AZURE_SPEECH_KEY:
+            _tts = AzureTTS()
+            logger.info(f"[TTS] Using Azure ({_AZURE_TTS_VOICE})")
+        else:
+            _tts = SarvamTTS()
+            logger.info("[TTS] Using Sarvam (Azure key not set)")
+
+        agent = VoicePipelineAgent(
+            vad=silero.VAD.load(
+                min_speech_duration=0.1,   # catch short words like 'हाँ', 'ji'
+                min_silence_duration=0.4,  # 400ms silence = end of utterance
+                activation_threshold=0.5,  # default — balanced for phone audio
+            ),
+            stt=_stt,
+            llm=ConversationLLM(conv),
+            tts=_tts,
+            min_endpointing_delay=0.4,     # 400ms after VAD end
+            allow_interruptions=False,     # barge-in off
+        )
+
+        agent.start(ctx.room)
+
+        # Play greeting immediately; block interruptions until it finishes
+        greeting = conv.get_greeting()
+        logger.info(f"[Greeting] {greeting!r}")
+        await agent.say(greeting, allow_interruptions=False)
+
+        # Disconnect after final speech finishes playing.
+        # agent_stopped_speaking fires when playout ends — safe to hang up immediately.
+        _speech_after_done = asyncio.Event()
+
+        @agent.on("agent_stopped_speaking")
+        def _on_agent_stopped_speaking(*_):
+            if conv.state == State.DONE:
+                logger.info("[Call] Final speech finished — disconnecting in 1s")
+                _speech_after_done.set()
+
+        async def _watch_done():
+            # Primary: wait for agent_stopped_speaking event after DONE
+            # Fallback: if event never fires, disconnect 20s after DONE state is set
+            done_at = None
+            while not _speech_after_done.is_set():
+                await asyncio.sleep(0.5)
+                if conv.state == State.DONE:
+                    if done_at is None:
+                        done_at = asyncio.get_event_loop().time()
+                        logger.info("[Call] DONE state detected (poll fallback)")
+                    elif asyncio.get_event_loop().time() - done_at > 20.0:
+                        logger.info("[Call] Fallback timeout — disconnecting room")
+                        try:
+                            lk = lkapi.LiveKitAPI()
+                            await lk.room.delete_room(lkapi.DeleteRoomRequest(room=ctx.room.name))
+                            await lk.aclose()
+                        except Exception:
+                            pass
+                        return
+            await asyncio.sleep(1.0)  # 1s buffer after playout ends
+            logger.info("[Call] Booking complete — disconnecting room")
+            try:
+                lk = lkapi.LiveKitAPI()
+                await lk.room.delete_room(lkapi.DeleteRoomRequest(room=ctx.room.name))
+                await lk.aclose()
+            except Exception:
+                pass
+
+        asyncio.create_task(_watch_done())
+
+        call_ended = asyncio.Event()
+
+        @ctx.room.on("participant_disconnected")
+        def _on_participant_disconnected(p):
+            if p.identity == participant.identity:
+                call_ended.set()
+
+        @ctx.room.on("disconnected")
+        def _on_room_disconnected(*_):
             call_ended.set()
 
-    @ctx.room.on("disconnected")
-    def _on_room_disconnected(*_):
-        call_ended.set()
-
-    await call_ended.wait()
+        await call_ended.wait()
+    finally:
+        _active_call = False
+        logger.info("[Call] Active call flag cleared")
 
 
 # ---------------------------------------------------------------------------
