@@ -556,24 +556,29 @@ class ConvStream(llm.LLMStream):
 # Per-call entrypoint
 # ---------------------------------------------------------------------------
 
-# Track whether a call is already in progress (one-at-a-time enforcement)
-_active_call = False
+# File lock path — works across separate Railway job processes
+_LOCK_FILE = "/tmp/active_call.lock"
 
 async def entrypoint(ctx: JobContext):
-    global _active_call
+    import fcntl as _fcntl
 
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
     # Wait for the SIP participant (Vobiz caller) to join the room
     participant = await ctx.wait_for_participant()
 
-    # --- Busy rejection: only one call at a time ---
-    if _active_call:
+    # --- Busy rejection: acquire exclusive file lock (cross-process) ---
+    lock_fd = open(_LOCK_FILE, "w")
+    try:
+        _fcntl.flock(lock_fd, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+    except IOError:
+        # Another process holds the lock — line is busy
+        lock_fd.close()
         logger.info("[Call] Already busy — rejecting new caller")
         busy_tts = AzureTTS() if _AZURE_SPEECH_KEY else SarvamTTS()
         busy_agent = VoicePipelineAgent(
             vad=silero.VAD.load(),
-            stt=SarvamSTT(),   # dummy, won't be used
+            stt=SarvamSTT(),
             llm=ConversationLLM(ConversationManager()),
             tts=busy_tts,
             allow_interruptions=False,
@@ -592,7 +597,7 @@ async def entrypoint(ctx: JobContext):
             pass
         return
 
-    _active_call = True
+    # Lock acquired — this is the active call
     try:
         # Vobiz SIP attributes — log all keys for debugging, then extract caller number
         attrs = participant.attributes or {}
@@ -703,8 +708,9 @@ async def entrypoint(ctx: JobContext):
 
         await call_ended.wait()
     finally:
-        _active_call = False
-        logger.info("[Call] Active call flag cleared")
+        _fcntl.flock(lock_fd, _fcntl.LOCK_UN)
+        lock_fd.close()
+        logger.info("[Call] Active call lock released")
 
 
 # ---------------------------------------------------------------------------
