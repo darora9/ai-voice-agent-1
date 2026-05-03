@@ -72,7 +72,7 @@ def _human_date(date_iso: str) -> str:
 def _greeting_with_hours(name: str) -> str:
     return (
         f"{name} जी, नमस्ते! "
-        f"Clinic का समय: {CLINIC_HOURS}. "
+        f"{DOCTOR_NAME} को मिलने का समय: {CLINIC_HOURS}. "
         "आप किस दिन और समय appointment लेना चाहेंगे?"
     )
 
@@ -462,7 +462,7 @@ class ConversationManager:
             "kab aayenge", "kab available", "kitne baje", "timing", "time kya",
             "कितने बजे", "कब आएंगे", "कब available", "क्या समय", "टाइमिंग"
         )):
-            return f"Clinic का समय {CLINIC_HOURS} है। आप किस समय आना चाहेंगे?"
+            return f"{DOCTOR_NAME} को मिलने का समय {CLINIC_HOURS} है। आप किस समय आना चाहेंगे?"
 
         # "कोई भी" / "जो भी available हो" — pick first available slot
         if any(kw in tl for kw in ("koi bhi", "jo bhi", "kuch bhi", "any", "कोई भी", "जो भी", "कुछ भी", "ਕੋਈ ਵੀ")):
