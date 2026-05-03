@@ -638,7 +638,7 @@ async def entrypoint(ctx: JobContext):
                 if done_at is None:
                     done_at = asyncio.get_event_loop().time()
                     logger.info("[Call] DONE state detected (poll fallback)")
-                elif asyncio.get_event_loop().time() - done_at > 10.0:
+                elif asyncio.get_event_loop().time() - done_at > 20.0:
                     logger.info("[Call] Fallback timeout — disconnecting room")
                     try:
                         await ctx.room.disconnect()
