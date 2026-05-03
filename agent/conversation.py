@@ -588,7 +588,7 @@ class ConversationManager:
         affirm = bool(_re.search(
             r"(haan|hnji|ji\b|ha\b|yes|bilkul|theek|ok\b|okay|confirm|karo|krdo|kar\s*do|kar\s*de"
             r"|karde|kardo|zaroor|sahi|done|book\b|dijiye|kijiye|kar\s*du|kar\s*dun|kar\s*doon"
-            r"|perd[oó]n"
+            r"|perd[oó]n|perdo\b|cardo\b"
             r"|हाँ|हां|हा\b|जी|हजी|हन्जी|बिल्कुल|ठीक|करो|कर\s*दो|करदो|कर\s*दे|करदे|कर\s*दीजिए"
             r"|कर\s*दूं|कर\s*दूँ|कर\s*दू"
             r"|ज़रूर|जरूर|सही|दीजिए|कीजिए|बुक"
