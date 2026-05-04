@@ -175,7 +175,7 @@ class DeepgramSTT(stt.STT):
                 "https://api.deepgram.com/v1/listen",
                 params={
                     "model":        "nova-3",
-                    "language":     "hi-en",
+                    "language":     "hi",
                     "smart_format": "true",
                     "punctuate":    "false",
                 },
