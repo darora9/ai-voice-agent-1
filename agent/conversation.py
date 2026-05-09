@@ -518,21 +518,18 @@ class ConversationManager:
                     time = f"{h + 12:02d}:{m:02d}"
             except Exception:
                 pass
-        # Out-of-hours check using window definitions
+        # Time falls outside all windows (gap between sessions or after hours)
         if not self.calendar._get_window(time):
             if self.date:
                 avail_wins = self.calendar.get_available_windows(self.date)
                 if avail_wins:
                     avail_wins = [w for w in avail_wins if not self._is_past_slot(self.date, w["start"])]
                 if avail_wins:
-                    last_win = avail_wins[-1]
-                    self.time = last_win["start"]
                     self.available_slots = [w["start"] for w in avail_wins]
-                    self.state = State.WAIT_CONFIRM
-                    return f"Clinic उस समय बंद है। आखिरी available window {_fmt_time(last_win['start'])} से {_fmt_time(last_win['end'])} बजे है — confirm करूँ?"
-            self.time = time
+                    self.state = State.WAIT_SLOT_CHOICE
+                    return _window_full_msg(time, avail_wins)
             self.state = State.WAIT_TIME
-            return f"यह समय clinic hours के बाहर है। कोई और समय बताएं।"
+            return _window_full_msg(time, [])
         self.time = time
         return await self._check_slot()
 
@@ -687,16 +684,22 @@ class ConversationManager:
         return f"{self.patient_name} जी, {_human_date(self.date)} को {_fmt_time(self.time)} बजे — क्या confirm करूँ?"
 
     async def _book_now(self) -> str:
+        # Normalize to window start for the calendar entry (e.g. 09:45 → 09:30)
+        # but keep display_time as what the patient said
+        display_time = self.time
+        win = self.calendar._get_window(self.time)
+        booking_time = win[0] if win else self.time
+
         result = self.calendar.book_appointment(
             patient_name=self.patient_name,
             patient_phone=self.patient_phone,
             date_str=self.date,
-            time_str=self.time,
+            time_str=booking_time,
             city=self.patient_city,
         )
         if result.get("success"):
             self.state = State.DONE
-            confirmation = _booking_confirmed(self.patient_name, self.date, self.time)
+            confirmation = _booking_confirmed(self.patient_name, self.date, display_time)
             # Fire-and-forget SMS — don't block or fail the call if SMS fails
             asyncio.create_task(self._send_sms_confirmation())
             return confirmation
@@ -830,17 +833,15 @@ class ConversationManager:
         # Check if requested time falls in a window with remaining capacity
         avail, booked, cap = self.calendar.is_time_available(self.date, self.time)
         if avail:
-            # Normalize to window start so the booking entry uses e.g. 09:30, not 09:45
-            win = self.calendar._get_window(self.time)
-            if win:
-                self.time = win[0]
+            # Keep self.time as patient's spoken time (e.g. 09:45) for display.
+            # Normalization to window start happens in _book_now at calendar write time.
             self.state = State.WAIT_CONFIRM
             return _slot_available_confirm(self.patient_name, self.date, self.time)
 
-        # Time is outside clinic hours entirely
+        # Time is outside clinic hours entirely — treat same as full window
         if not self.calendar._get_window(self.time):
-            self.state = State.WAIT_TIME
-            return f"यह समय clinic hours के बाहर है। {_describe_available_windows(self.date, windows)}"
+            self.state = State.WAIT_SLOT_CHOICE
+            return _window_full_msg(self.time, windows)
 
         # Window is full — suggest nearest open windows
         self.state = State.WAIT_SLOT_CHOICE
@@ -866,7 +867,7 @@ class ConversationManager:
             return False
 
     def _match_slot(self, time: str) -> str | None:
-        """Return window-start time if the window has remaining capacity."""
+        """Return patient's spoken time if its window has remaining capacity."""
         if not time:
             return None
         win = self.calendar._get_window(time)
@@ -874,9 +875,9 @@ class ConversationManager:
             return None
         ws, _, _ = win
         # available_slots holds window-start times for windows with remaining capacity
-        # Always return the window start so bookings align to window boundaries
+        # Return patient's spoken time — normalization to window start happens at booking
         if ws in self.available_slots:
-            return ws
+            return time
         return None
 
     @staticmethod
