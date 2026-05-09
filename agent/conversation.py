@@ -141,7 +141,15 @@ def _window_full_msg(requested_time: str, windows: list) -> str:
     """Message when requested window is full, suggesting nearby open windows."""
     win_starts = [w["start"] for w in windows]
     before, after = _nearby_slots(requested_time, win_starts)
-    return _slot_taken_nearby("", requested_time, before, after)
+    parts = []
+    if before:
+        parts.append(f"{_fmt_time(before)} बजे")
+    if after:
+        parts.append(f"{_fmt_time(after)} बजे")
+    nearby_str = " या ".join(parts)
+    if nearby_str:
+        return f"{_fmt_time(requested_time)} बजे slot available नहीं है। {nearby_str} में slot है। कौनसा ठीक रहेगा?"
+    return f"{_fmt_time(requested_time)} बजे slot available नहीं है। कोई और समय बताएं।"
 
 
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
@@ -822,6 +830,10 @@ class ConversationManager:
         # Check if requested time falls in a window with remaining capacity
         avail, booked, cap = self.calendar.is_time_available(self.date, self.time)
         if avail:
+            # Normalize to window start so the booking entry uses e.g. 09:30, not 09:45
+            win = self.calendar._get_window(self.time)
+            if win:
+                self.time = win[0]
             self.state = State.WAIT_CONFIRM
             return _slot_available_confirm(self.patient_name, self.date, self.time)
 
@@ -854,7 +866,7 @@ class ConversationManager:
             return False
 
     def _match_slot(self, time: str) -> str | None:
-        """Return time if its window has remaining capacity (window start in available_slots)."""
+        """Return window-start time if the window has remaining capacity."""
         if not time:
             return None
         win = self.calendar._get_window(time)
@@ -862,8 +874,9 @@ class ConversationManager:
             return None
         ws, _, _ = win
         # available_slots holds window-start times for windows with remaining capacity
+        # Always return the window start so bookings align to window boundaries
         if ws in self.available_slots:
-            return time
+            return ws
         return None
 
     @staticmethod
