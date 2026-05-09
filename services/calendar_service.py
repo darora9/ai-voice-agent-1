@@ -23,11 +23,16 @@ _event_registry: dict[str, dict] = {}
 # ---------------------------------------------------------------------------
 SLOT_WINDOWS = [
     ("09:30", "10:00",  5),   # 9:30–10:00 AM  —  5 slots
-    ("10:00", "11:00", 10),   # 10:00–11:00 AM — 10 slots
-    ("11:00", "12:00", 10),   # 11:00–12:00 PM — 10 slots
-    ("12:00", "13:00", 10),   # 12:00–1:00 PM  — 10 slots
-    ("13:00", "14:00", 10),   # 1:00–2:00 PM   — 10 slots
-    ("17:00", "18:00", 12),   # 5:00–6:00 PM   — 12 slots
+    ("10:00", "10:30", 5),   # 10:00–10:30 AM — 5 slots
+    ("10:30", "11:00", 5),   # 10:30–11:00 AM — 5 slots
+    ("11:00", "11:30", 5),   # 11:00–11:30 AM — 5 slots
+    ("11:30", "12:00", 5),   # 11:30–12:00 PM — 5 slots
+    ("12:00", "12:30", 5),   # 12:00–12:30 PM — 5 slots
+    ("12:30", "13:00", 5),   # 12:30–1:00 PM — 5 slots
+    ("13:00", "13:30", 5),   # 1:00–1:30 PM — 5 slots
+    ("13:30", "14:00", 5),   # 1:30–2:00 PM — 5 slots
+    ("17:00", "17:30", 6),   # 5:00–5:30 PM — 6 slots
+    ("17:30", "18:00", 6),   # 5:30–6:00 PM — 6 slots
     ("18:00", "18:30",  6),   # 6:00–6:30 PM   —  6 slots
 ]
 
@@ -156,19 +161,46 @@ class CalendarService:
             return None
 
     def _count_per_window(self, events: list) -> dict:
-        """Return {(ws, we): count} of bookings per window."""
+        """Return {(ws, we): count} of bookings per window.
+
+        BLOCK events: if an event title contains 'BLOCK' (case-insensitive),
+        every window that overlaps with the event's time range is marked as full.
+        Doctor blocks time by adding a Google Calendar event titled e.g. 'BLOCK'
+        or 'BLOCK - leave' at the desired start/end time — no code access needed.
+        """
         counts = {(ws, we): 0 for ws, we, _ in SLOT_WINDOWS}
+        caps   = {(ws, we): cap for ws, we, cap in SLOT_WINDOWS}
         for event in events:
             ev_start = event["start"].get("dateTime")
             if not ev_start:
                 continue
             try:
-                dt = datetime.fromisoformat(ev_start).replace(tzinfo=None)
-                win = self._get_window(dt.strftime("%H:%M"))
-                if win:
-                    key = (win[0], win[1])
-                    if key in counts:
-                        counts[key] += 1
+                is_block = "BLOCK" in event.get("summary", "").upper()
+                start_dt = datetime.fromisoformat(ev_start).replace(tzinfo=None)
+
+                if is_block:
+                    # Block all windows that overlap with [ev_start, ev_end)
+                    ev_end_str = event["end"].get("dateTime")
+                    end_dt = (
+                        datetime.fromisoformat(ev_end_str).replace(tzinfo=None)
+                        if ev_end_str else start_dt + timedelta(minutes=30)
+                    )
+                    start_mins = start_dt.hour * 60 + start_dt.minute
+                    end_mins   = end_dt.hour   * 60 + end_dt.minute
+                    for ws, we, _ in SLOT_WINDOWS:
+                        wsh, wsm = map(int, ws.split(":"))
+                        weh, wem = map(int, we.split(":"))
+                        ws_mins = wsh * 60 + wsm
+                        we_mins = weh * 60 + wem
+                        # Overlap: window starts before block ends AND window ends after block starts
+                        if ws_mins < end_mins and we_mins > start_mins:
+                            counts[(ws, we)] = caps[(ws, we)]  # mark entire window full
+                else:
+                    win = self._get_window(start_dt.strftime("%H:%M"))
+                    if win:
+                        key = (win[0], win[1])
+                        if key in counts:
+                            counts[key] += 1
             except Exception:
                 pass
         return counts
