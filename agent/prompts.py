@@ -7,7 +7,10 @@ from datetime import datetime, timezone, timedelta
 
 DOCTOR_NAME = os.getenv("DOCTOR_NAME", "Dr. Ajay Gupta")
 CLINIC_NAME = os.getenv("CLINIC_NAME", "Aisha Hospital")
-CLINIC_HOURS = os.getenv("CLINIC_HOURS", "9 AM to 6 PM, Monday to Saturday")
+CLINIC_HOURS = os.getenv(
+    "CLINIC_HOURS",
+    "सुबह 9:30 से दोपहर 2 बजे, और शाम 5 से 6:30 बजे, Monday से Saturday"
+)
 
 IST = timezone(timedelta(hours=5, minutes=30))
 

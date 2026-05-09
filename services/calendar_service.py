@@ -17,6 +17,20 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Populated on booking, used by cancellation monitor to look up who to SMS
 _event_registry: dict[str, dict] = {}
 
+# ---------------------------------------------------------------------------
+# Clinic appointment windows — edit capacities here
+# Each entry: (window_start "HH:MM", window_end "HH:MM", max_appointments)
+# ---------------------------------------------------------------------------
+SLOT_WINDOWS = [
+    ("09:30", "10:00",  5),   # 9:30–10:00 AM  —  5 slots
+    ("10:00", "11:00", 10),   # 10:00–11:00 AM — 10 slots
+    ("11:00", "12:00", 10),   # 11:00–12:00 PM — 10 slots
+    ("12:00", "13:00", 10),   # 12:00–1:00 PM  — 10 slots
+    ("13:00", "14:00", 10),   # 1:00–2:00 PM   — 10 slots
+    ("17:00", "18:00", 12),   # 5:00–6:00 PM   — 12 slots
+    ("18:00", "18:30",  6),   # 6:00–6:30 PM   —  6 slots
+]
+
 
 class CalendarService:
     def __init__(self):
@@ -103,11 +117,112 @@ class CalendarService:
             print(f"[Calendar Error] {e}")
             return {"success": False, "error": str(e)}
 
+    # ------------------------------------------------------------------
+    # Window-based capacity helpers
+    # ------------------------------------------------------------------
+
+    def _get_window(self, time_str: str):
+        """Return (start, end, capacity) for the window containing time_str, or None."""
+        try:
+            h, m = map(int, time_str.split(":"))
+            t_mins = h * 60 + m
+            for ws, we, cap in SLOT_WINDOWS:
+                wsh, wsm = map(int, ws.split(":"))
+                weh, wem = map(int, we.split(":"))
+                if wsh * 60 + wsm <= t_mins < weh * 60 + wem:
+                    return (ws, we, cap)
+        except Exception:
+            pass
+        return None
+
+    def _fetch_day_events(self, date_str: str) -> list | None:
+        """Fetch all calendar events for a date. Returns list or None on error."""
+        try:
+            day_start = datetime.strptime(f"{date_str} 00:00", "%Y-%m-%d %H:%M")
+            day_end   = datetime.strptime(f"{date_str} 23:59", "%Y-%m-%d %H:%M")
+            result = (
+                self.service.events()
+                .list(
+                    calendarId=self.calendar_id,
+                    timeMin=day_start.strftime("%Y-%m-%dT%H:%M:00+05:30"),
+                    timeMax=day_end.strftime("%Y-%m-%dT%H:%M:00+05:30"),
+                    singleEvents=True,
+                )
+                .execute()
+            )
+            return result.get("items", [])
+        except Exception as e:
+            print(f"[Calendar Error] _fetch_day_events: {e}")
+            return None
+
+    def _count_per_window(self, events: list) -> dict:
+        """Return {(ws, we): count} of bookings per window."""
+        counts = {(ws, we): 0 for ws, we, _ in SLOT_WINDOWS}
+        for event in events:
+            ev_start = event["start"].get("dateTime")
+            if not ev_start:
+                continue
+            try:
+                dt = datetime.fromisoformat(ev_start).replace(tzinfo=None)
+                win = self._get_window(dt.strftime("%H:%M"))
+                if win:
+                    key = (win[0], win[1])
+                    if key in counts:
+                        counts[key] += 1
+            except Exception:
+                pass
+        return counts
+
+    def is_time_available(self, date_str: str, time_str: str) -> tuple[bool, int, int]:
+        """
+        Check capacity for the window containing time_str.
+        Returns (available, booked_count, window_capacity).
+        Returns (False, 0, 0) if time is outside clinic hours.
+        """
+        window = self._get_window(time_str)
+        if not window:
+            return False, 0, 0
+        ws, we, cap = window
+        events = self._fetch_day_events(date_str)
+        if events is None:
+            return False, 0, 0
+        counts = self._count_per_window(events)
+        booked = counts.get((ws, we), 0)
+        return booked < cap, booked, cap
+
+    def get_available_windows(self, date_str: str) -> list | None:
+        """
+        Return windows with remaining capacity as list of dicts:
+        {"start": "HH:MM", "end": "HH:MM", "capacity": N, "remaining": N}
+        Returns None on API error, [] if no windows open.
+        """
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            if date_obj.weekday() == 6:
+                return []
+            events = self._fetch_day_events(date_str)
+            if events is None:
+                return None
+            counts = self._count_per_window(events)
+            return [
+                {
+                    "start": ws,
+                    "end": we,
+                    "capacity": cap,
+                    "remaining": cap - counts.get((ws, we), 0),
+                }
+                for ws, we, cap in SLOT_WINDOWS
+                if counts.get((ws, we), 0) < cap
+            ]
+        except Exception as e:
+            print(f"[Calendar Error] get_available_windows: {e}")
+            return None
+
     def get_available_slots(self, date_str: str) -> list[str]:
         """
-        Return list of available HH:MM slots on a given date.
-        Checks existing events and excludes booked times.
-        Returns None on API error, [] if genuinely no slots.
+        Window-aware slot availability. Returns window-start times with capacity,
+        'SUNDAY', or None on error.
+        Replaces the old per-30min slot generation.
         """
         try:
             # Clinic is Mon-Sat only; Sunday has no slots
@@ -115,57 +230,10 @@ class CalendarService:
             if date_obj.weekday() == 6:  # 6 = Sunday
                 return "SUNDAY"  # special sentinel so caller gets a clear message
             tz = "Asia/Kolkata"
-            start_of_day = datetime.strptime(f"{date_str} 09:00", "%Y-%m-%d %H:%M")
-            end_of_day = datetime.strptime(f"{date_str} 18:00", "%Y-%m-%d %H:%M")
-
-            events_result = (
-                self.service.events()
-                .list(
-                    calendarId=self.calendar_id,
-                    timeMin=start_of_day.strftime("%Y-%m-%dT%H:%M:00+05:30"),
-                    timeMax=end_of_day.strftime("%Y-%m-%dT%H:%M:00+05:30"),
-                    singleEvents=True,
-                    orderBy="startTime",
-                )
-                .execute()
-            )
-
-            booked_ranges = []  # list of (start_dt, end_dt) for overlap check
-            for event in events_result.get("items", []):
-                ev_start = event["start"].get("dateTime") or event["start"].get("date")
-                ev_end   = event["end"].get("dateTime")   or event["end"].get("date")
-                if not ev_start or not ev_end:
-                    continue
-                try:
-                    # Handle both date-only (all-day) and dateTime events
-                    if "T" in ev_start:
-                        s = datetime.fromisoformat(ev_start).replace(tzinfo=None)
-                        e = datetime.fromisoformat(ev_end).replace(tzinfo=None)
-                    else:
-                        s = datetime.strptime(ev_start, "%Y-%m-%d").replace(hour=0, minute=0)
-                        e = datetime.strptime(ev_end,   "%Y-%m-%d").replace(hour=23, minute=59)
-                    booked_ranges.append((s, e))
-                except Exception:
-                    pass
-
-            def _is_blocked(slot_dt: datetime) -> bool:
-                slot_end = slot_dt + timedelta(minutes=self.appointment_duration)
-                for s, e in booked_ranges:
-                    # Overlap: slot starts before event ends AND slot ends after event starts
-                    if slot_dt < e and slot_end > s:
-                        return True
-                return False
-
-            # Generate all slots (every 30 mins, 9am–6pm)
-            all_slots = []
-            current = start_of_day
-            while current < end_of_day:
-                slot = current.strftime("%H:%M")
-                if not _is_blocked(current):
-                    all_slots.append(slot)
-                current += timedelta(minutes=self.appointment_duration)
-
-            return all_slots
+            windows = self.get_available_windows(date_str)
+            if windows is None:
+                return None
+            return [w["start"] for w in windows]
 
         except Exception as e:
             print(f"[Calendar Error] {e}")
@@ -176,22 +244,20 @@ class CalendarService:
         import datetime as _dt
         IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
         today = _dt.datetime.now(tz=IST).date()
+        now_ist = _dt.datetime.now(tz=IST)
         for day_offset in range(30):  # look up to 30 days ahead
             check_date = today + _dt.timedelta(days=day_offset)
             if check_date.weekday() == 6:  # skip Sunday
                 continue
-            slots = self.get_available_slots(check_date.isoformat())
-            if not slots or slots == "SUNDAY":
+            windows = self.get_available_windows(check_date.isoformat())
+            if not windows:
                 continue
-            # Filter past slots if today
-            from datetime import datetime as _dtt
-            now_ist = _dtt.now(tz=IST)
-            for s in slots:
-                slot_dt = _dtt.strptime(
-                    f"{check_date.isoformat()} {s}", "%Y-%m-%d %H:%M"
+            for w in windows:
+                slot_dt = _dt.datetime.strptime(
+                    f"{check_date.isoformat()} {w['start']}", "%Y-%m-%d %H:%M"
                 ).replace(tzinfo=IST)
                 if slot_dt > now_ist:
-                    return {"date": check_date.isoformat(), "time": s}
+                    return {"date": check_date.isoformat(), "time": w["start"]}
         return None
 
     def get_next_available_after(self, from_date_str: str) -> dict | None:
@@ -203,20 +269,19 @@ class CalendarService:
         except Exception:
             start = _dt.datetime.now(tz=IST).date()
         now_ist = _dt.datetime.now(tz=IST)
-        from datetime import datetime as _dtt
         for day_offset in range(30):
             check_date = start + _dt.timedelta(days=day_offset)
             if check_date.weekday() == 6:  # skip Sunday
                 continue
-            slots = self.get_available_slots(check_date.isoformat())
-            if not slots or slots == "SUNDAY":
+            windows = self.get_available_windows(check_date.isoformat())
+            if not windows:
                 continue
-            for s in slots:
-                slot_dt = _dtt.strptime(
-                    f"{check_date.isoformat()} {s}", "%Y-%m-%d %H:%M"
+            for w in windows:
+                slot_dt = _dt.datetime.strptime(
+                    f"{check_date.isoformat()} {w['start']}", "%Y-%m-%d %H:%M"
                 ).replace(tzinfo=IST)
                 if slot_dt > now_ist:
-                    return {"date": check_date.isoformat(), "time": s}
+                    return {"date": check_date.isoformat(), "time": w["start"]}
         return None
 
     def get_cancelled_since(self, sync_token: str | None) -> tuple[list[dict], str]:

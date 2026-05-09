@@ -126,6 +126,24 @@ def _slot_taken_nearby(date: str, time: str, before: str | None, after: str | No
     return f"{_fmt_time(time)} बजे slot नहीं है। कोई और समय बताएं।"
 
 
+def _describe_available_windows(date: str, windows: list) -> str:
+    """Tell caller which time windows are open."""
+    if not windows:
+        return "उस दिन कोई slot available नहीं है।"
+    parts = [f"{_fmt_time(w['start'])} से {_fmt_time(w['end'])} बजे" for w in windows]
+    return (
+        f"{_human_date(date)} को available समय: {', '.join(parts)}। "
+        "कौनसा समय prefer करेंगे?"
+    )
+
+
+def _window_full_msg(requested_time: str, windows: list) -> str:
+    """Message when requested window is full, suggesting nearby open windows."""
+    win_starts = [w["start"] for w in windows]
+    before, after = _nearby_slots(requested_time, win_starts)
+    return _slot_taken_nearby("", requested_time, before, after)
+
+
 def _slot_taken(date: str, time: str, suggestions: list) -> str:
     # fallback — unused, kept for reference
     slots = ", ".join(suggestions)
@@ -492,23 +510,21 @@ class ConversationManager:
                     time = f"{h + 12:02d}:{m:02d}"
             except Exception:
                 pass
-        # Out-of-hours check: clinic ends at 18:00, last slot is 17:30
-        # If requested time >= 18:00, steer toward last available slot immediately
-        try:
-            h, m = map(int, time.split(":"))
-            if h >= 18:
-                # Fetch slots now to offer the last one directly
-                if self.date:
-                    slots = self.calendar.get_available_slots(self.date)
-                    if slots and slots != "SUNDAY":
-                        from services.calendar_service import CalendarService as _CS
-                        last = slots[-1]
-                        self.time = last
-                        self.available_slots = slots
-                        self.state = State.WAIT_CONFIRM
-                        return f"Clinic {_fmt_time(time)} बजे बंद हो जाती है। आखिरी slot {_fmt_time(last)} बजे है — confirm करूँ?"
-        except Exception:
-            pass
+        # Out-of-hours check using window definitions
+        if not self.calendar._get_window(time):
+            if self.date:
+                avail_wins = self.calendar.get_available_windows(self.date)
+                if avail_wins:
+                    avail_wins = [w for w in avail_wins if not self._is_past_slot(self.date, w["start"])]
+                if avail_wins:
+                    last_win = avail_wins[-1]
+                    self.time = last_win["start"]
+                    self.available_slots = [w["start"] for w in avail_wins]
+                    self.state = State.WAIT_CONFIRM
+                    return f"Clinic उस समय बंद है। आखिरी available window {_fmt_time(last_win['start'])} से {_fmt_time(last_win['end'])} बजे है — confirm करूँ?"
+            self.time = time
+            self.state = State.WAIT_TIME
+            return f"यह समय clinic hours के बाहर है। कोई और समय बताएं।"
         self.time = time
         return await self._check_slot()
 
@@ -753,45 +769,33 @@ class ConversationManager:
             self.state = State.WAIT_DATETIME
             return "कृपया तारीख़ फिर से बताएं, जैसे 'कल', 'परसों', या '25 April'।"
 
-        slots = self.calendar.get_available_slots(self.date)
-        if slots is None:
-            return "Calendar से जानकारी नहीं मिल पाई। कृपया थोड़ी देर बाद फिर try करें।"
-        if slots == "SUNDAY":
+        import datetime as _dt
+        if _dt.date.fromisoformat(self.date).weekday() == 6:
             self.date = ""
             self.time = ""
             self.state = State.WAIT_DATETIME
             return "इतवार को clinic बंद रहती है। कृपया कोई और दिन चुनें, Monday से Saturday।"
 
-        self.available_slots = slots
+        IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
 
-        # Filter out slots that are already in the past (relevant for today)
-        self.available_slots = [
-            s for s in slots
-            if not self._is_past_slot(self.date, s)
-        ]
-        slots = self.available_slots
+        windows = self.calendar.get_available_windows(self.date)
+        if windows is None:
+            return "Calendar से जानकारी नहीं मिल पाई। कृपया थोड़ी देर बाद फिर try करें।"
+
+        # Filter windows already in the past (relevant for today)
+        windows = [w for w in windows if not self._is_past_slot(self.date, w["start"])]
+        self.available_slots = [w["start"] for w in windows]
 
         # If the requested time has passed today, give a specific message
         if self.time and self._is_past_slot(self.date, self.time):
-            import datetime as _dt
-            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
             is_today = self.date == _dt.datetime.now(tz=IST).date().isoformat()
             if is_today:
-                if slots:
-                    before, after = _nearby_slots(self.time, slots)
-                    next_slot = after or before
+                if windows:
+                    next_win = windows[0]
                     requested = self.time
                     self.time = ""
                     self.state = State.WAIT_SLOT_CHOICE
-                    if next_slot:
-                        return f"{_fmt_time(requested)} बजे का समय निकल चुका है। अगला available slot {_fmt_time(next_slot)} बजे है — confirm करूँ?"
-                    else:
-                        saved = self.date
-                        self.date = ""
-                        self.state = State.WAIT_DATETIME
-                        ns = self.calendar.get_next_available_after(saved)
-                        ns_hint = f" अगला slot: {_human_date(ns['date'])} {_fmt_time(ns['time'])} बजे।" if ns else ""
-                        return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
+                    return f"{_fmt_time(requested)} बजे का समय निकल चुका है। अगला available: {_fmt_time(next_win['start'])} बजे — confirm करूँ?"
                 else:
                     saved = self.date
                     self.date = ""
@@ -801,9 +805,7 @@ class ConversationManager:
                     ns_hint = f" अगला slot: {_human_date(ns['date'])} {_fmt_time(ns['time'])} बजे।" if ns else ""
                     return f"आज के बाकी सारे slots निकल चुके हैं।{ns_hint} कोई और दिन बताएं।"
 
-        if not slots:
-            import datetime as _dt
-            IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        if not windows:
             saved_date = self.date
             is_today = saved_date == _dt.datetime.now(tz=IST).date().isoformat()
             next_avail = self.calendar.get_next_available_after(saved_date)
@@ -812,25 +814,25 @@ class ConversationManager:
             self.state = State.WAIT_DATETIME
             return _no_slots_on_date(saved_date, is_today=is_today, next_slot=next_avail)
 
-        matched = self._match_slot(self.time)
-        if matched and self._is_past_slot(self.date, matched):
-            matched = None
-        if matched:
-            self.time = matched
+        # No time given — describe available windows
+        if not self.time:
+            self.state = State.WAIT_TIME
+            return _describe_available_windows(self.date, windows)
+
+        # Check if requested time falls in a window with remaining capacity
+        avail, booked, cap = self.calendar.is_time_available(self.date, self.time)
+        if avail:
             self.state = State.WAIT_CONFIRM
             return _slot_available_confirm(self.patient_name, self.date, self.time)
-        elif not self.time:
-            # No preferred time — just ask for one
+
+        # Time is outside clinic hours entirely
+        if not self.calendar._get_window(self.time):
             self.state = State.WAIT_TIME
-            first, last = slots[0], slots[-1]
-            return (
-                f"{_human_date(self.date)} को {_fmt_time(first)} बजे से {_fmt_time(last)} बजे तक slots available हैं। "
-                "आप कौनसा समय prefer करेंगे?"
-            )
-        else:
-            before, after = _nearby_slots(self.time, slots)
-            self.state = State.WAIT_SLOT_CHOICE
-            return _slot_taken_nearby(self.date, self.time, before, after)
+            return f"यह समय clinic hours के बाहर है। {_describe_available_windows(self.date, windows)}"
+
+        # Window is full — suggest nearest open windows
+        self.state = State.WAIT_SLOT_CHOICE
+        return _window_full_msg(self.time, windows)
 
     def _is_past_date(self, date: str) -> bool:
         import datetime as _dt
@@ -851,12 +853,17 @@ class ConversationManager:
         except Exception:
             return False
 
-    def _match_slot(self, time: str) -> str:
-        if time in self.available_slots:
+    def _match_slot(self, time: str) -> str | None:
+        """Return time if its window has remaining capacity (window start in available_slots)."""
+        if not time:
+            return None
+        win = self.calendar._get_window(time)
+        if not win:
+            return None
+        ws, _, _ = win
+        # available_slots holds window-start times for windows with remaining capacity
+        if ws in self.available_slots:
             return time
-        padded = time.zfill(5)
-        if padded in self.available_slots:
-            return padded
         return None
 
     @staticmethod
