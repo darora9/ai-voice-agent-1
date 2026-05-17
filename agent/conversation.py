@@ -180,7 +180,8 @@ def _booking_confirmed(name: str, date: str, time: str) -> str:
     except Exception:
         human_date = date
     return (
-        f"बिल्कुल! {name} जी, {human_date} को {_fmt_time(time)} बजे appointment confirm हो गई। धन्यवाद!"
+        f"बिल्कुल! {name} जी, {human_date} को {_fmt_time(time)} बजे appointment confirm हो गई। "
+        f"कृपया अपने समय से 15 मिनट पहले पहुँचें — 15 मिनट से ज़्यादा late आने पर आपको आख़िर में देखा जाएगा। धन्यवाद!"
     )
 
 def _booking_failed() -> str:
